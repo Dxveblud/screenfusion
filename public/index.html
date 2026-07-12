@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ScreenFusion</title>
+<style>
+  :root{
+    --bg:#0f1117; --card:#20232e; --line:#2c3040; --text:#ebedf3; --muted:#8b91a3;
+    --recv:#5865f2; --recv-h:#6e7aff; --send:#23a05a; --send-h:#2db969;
+    --ok:#57dc82; --warn:#ffbe46;
+  }
+  *{box-sizing:border-box;font-family:"Segoe UI",system-ui,sans-serif}
+  body{margin:0;background:var(--bg);color:var(--text);min-height:100vh}
+  #setup{max-width:560px;margin:0 auto;padding:34px 22px}
+  h1{font-size:31px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:26px}
+  button{border:0;border-radius:14px;color:#fff;font-size:17px;font-weight:600;
+    width:100%;padding:16px;cursor:pointer;transition:background .15s;margin:8px 0}
+  button small{display:block;font-weight:400;font-size:13px;opacity:.9;margin-top:3px}
+  .recv{background:var(--recv)} .recv:hover{background:var(--recv-h)}
+  .send{background:var(--send)} .send:hover{background:var(--send-h)}
+  button:disabled{background:#2d303a;color:var(--muted);cursor:default}
+  .or{text-align:center;color:var(--muted);margin:6px 0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:16px;margin-top:16px;display:none}
+  .card.on{display:block}
+  .code{font-size:34px;font-weight:700;letter-spacing:6px;text-align:center;
+    color:var(--ok);margin:6px 0}
+  .linkrow{display:flex;gap:8px;margin-top:10px}
+  input{flex:1;background:#171a22;color:var(--text);border:1px solid var(--line);
+    border-radius:10px;padding:11px;font-size:15px}
+  .mini{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5}
+  .ghost{background:#3a3f4d;font-size:14px;padding:11px;width:auto;margin:0}
+  .ghost:hover{background:#474d5e}
+  .status{margin-top:20px;font-size:15px;color:var(--muted)}
+  .status.ok{color:var(--ok)} .status.warn{color:var(--warn)}
+  #stage{position:fixed;inset:0;background:#000;display:none;z-index:10}
+  #cv{width:100%;height:100%;display:block;object-fit:contain}
+  #bar{position:fixed;left:0;right:0;bottom:0;display:none;z-index:11;
+    justify-content:center;gap:10px;padding:10px;background:linear-gradient(transparent,#000a)}
+  #bar button{width:auto;padding:9px 16px;font-size:14px;margin:0;background:#ffffff1a}
+  #bar button:hover{background:#ffffff30}
+  #badge{position:fixed;top:12px;left:12px;z-index:11;background:#0009;color:#fff;
+    padding:7px 12px;border-radius:9px;font-size:13px;display:none}
+</style>
+</head>
+<body>
+
+<div id="setup">
+  <h1>ScreenFusion</h1>
+  <div class="sub">Sovrapponi due schermi in blend "Schermo" &mdash; dal browser, senza installare nulla</div>
+
+  <button class="recv" onclick="hostGame()">
+    PC di GIOCO
+    <small>usa questo schermo e mostra qui la fusione</small>
+  </button>
+  <div class="or">oppure</div>
+  <button class="send" onclick="showJoin()">
+    PC OVERLAY
+    <small>invia il tuo schermo a una stanza esistente</small>
+  </button>
+
+  <!-- host: mostra codice + link -->
+  <div class="card" id="hostCard">
+    <div class="mini">Codice stanza &mdash; condividilo con chi manda l'overlay:</div>
+    <div class="code" id="roomCode">----</div>
+    <div class="linkrow">
+      <input id="roomLink" readonly>
+      <button class="ghost" onclick="copyLink()">Copia link</button>
+    </div>
+    <div class="mini">Chi apre questo link deve solo premere "condividi schermo".
+      La fusione parte qui in automatico appena si collega.</div>
+  </div>
+
+  <!-- guest: inserisci codice -->
+  <div class="card" id="joinCard">
+    <div class="mini">Inserisci il codice della stanza del PC di gioco:</div>
+    <div class="linkrow">
+      <input id="joinCode" placeholder="ES. K7QP" maxlength="4"
+             style="text-transform:uppercase;letter-spacing:4px;text-align:center;font-size:20px">
+      <button class="ghost" onclick="joinRoom()">Entra</button>
+    </div>
+  </div>
+
+  <div class="status" id="status">Pronto.</div>
+</div>
+
+<div id="stage"><canvas id="cv" width="1920" height="1080"></canvas></div>
+<div id="badge"></div>
+<div id="bar">
+  <button onclick="toggleFs()">Schermo intero (F)</button>
+  <button onclick="location.reload()">Esci (ESC)</button>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+function setStatus(t,c){ const s=$('status'); s.textContent=t; s.className='status'+(c?' '+c:''); }
+
+const ICE = [{ urls: "stun:stun.l.google.com:19302" },
+             { urls: "stun:stun1.l.google.com:19302" }];
+
+let ws, pc, role, roomCode, localStream, remoteStream;
+
+function connectWS(){
+  return new Promise((res,rej)=>{
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    ws = new WebSocket(proto + "://" + location.host);
+    ws.onopen = ()=>res();
+    ws.onerror = ()=>rej(new Error("server non raggiungibile"));
+    ws.onmessage = ev => onSignal(JSON.parse(ev.data));
+  });
+}
+
+async function grabScreen(){
+  return await navigator.mediaDevices.getDisplayMedia({
+    video:{ width:{ideal:1920}, height:{ideal:1080}, frameRate:{ideal:60} }, audio:false
+  });
+}
+
+/* ---------- PC DI GIOCO (host = riceve e compone) ---------- */
+async function hostGame(){
+  role = "host";
+  try{
+    setStatus('Seleziona lo schermo di QUESTO PC (quello sotto)...','warn');
+    localStream = await grabScreen();
+  }catch(e){ setStatus('Cattura annullata.','warn'); return; }
+  try{ await connectWS(); }catch(e){ setStatus('Errore: '+e.message,'warn'); return; }
+  ws.send(JSON.stringify({ t:"host" }));
+}
+
+/* ---------- PC OVERLAY (guest = cattura e invia) ---------- */
+function showJoin(){
+  role = "guest";
+  $('joinCard').classList.add('on');
+  $('hostCard').classList.remove('on');
+  const pre = new URLSearchParams(location.search).get("room");
+  if(pre) $('joinCode').value = pre.toUpperCase();
+  setStatus('Inserisci il codice e premi Entra.');
+}
+
+async function joinRoom(){
+  const code = $('joinCode').value.trim().toUpperCase();
+  if(code.length !== 4){ setStatus('Codice non valido.','warn'); return; }
+  role = "guest"; roomCode = code;
+  try{
+    setStatus('Seleziona lo schermo da inviare (overlay su nero)...','warn');
+    localStream = await grabScreen();
+  }catch(e){ setStatus('Cattura annullata.','warn'); return; }
+  try{ await connectWS(); }catch(e){ setStatus('Errore: '+e.message,'warn'); return; }
+  ws.send(JSON.stringify({ t:"join", code }));
+}
+
+/* ---------- gestione messaggi signaling ---------- */
+async function onSignal(m){
+  if(m.t === "hosted"){
+    roomCode = m.code;
+    $('roomCode').textContent = m.code;
+    const link = location.origin + location.pathname + "?room=" + m.code;
+    $('roomLink').value = link;
+    $('hostCard').classList.add('on');
+    setStatus('In attesa dell\'overlay... condividi il codice o il link.','warn');
+
+  } else if(m.t === "guest-here"){
+    // il PC overlay e' entrato: preparo la connessione (rispondero' alla sua offerta)
+    setupPeer();
+    setStatus('Overlay collegato, avvio fusione...','warn');
+
+  } else if(m.t === "joined"){
+    // io (overlay) sono entrato: creo l'offerta con il mio video
+    setupPeer();
+    localStream.getTracks().forEach(t=>pc.addTrack(t, localStream));
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    ws.send(JSON.stringify({ t:"sig", payload:{ sdp: pc.localDescription } }));
+    setStatus('Invio in corso...','warn');
+
+  } else if(m.t === "sig"){
+    const p = m.payload;
+    if(p.sdp){
+      await pc.setRemoteDescription(p.sdp);
+      if(p.sdp.type === "offer"){
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        ws.send(JSON.stringify({ t:"sig", payload:{ sdp: pc.localDescription } }));
+      }
+    } else if(p.ice){
+      try{ await pc.addIceCandidate(p.ice); }catch(e){}
+    }
+
+  } else if(m.t === "peer-left"){
+    setStatus(role==="host" ? 'Overlay disconnesso.' : 'PC di gioco disconnesso.','warn');
+
+  } else if(m.t === "error"){
+    setStatus(m.msg,'warn');
+  }
+}
+
+function setupPeer(){
+  pc = new RTCPeerConnection({ iceServers: ICE });
+  pc.onicecandidate = e => {
+    if(e.candidate) ws.send(JSON.stringify({ t:"sig", payload:{ ice: e.candidate } }));
+  };
+  pc.onconnectionstatechange = ()=>{
+    if(pc.connectionState==="connected")
+      setStatus(role==="host" ? 'Fusione attiva' : 'Invio attivo','ok');
+    if(pc.connectionState==="failed")
+      setStatus('Connessione fallita (rete/NAT).','warn');
+  };
+  if(role === "host"){
+    remoteStream = new MediaStream();
+    pc.ontrack = e => { remoteStream.addTrack(e.track); startStage(); };
+  }
+}
+
+/* ---------- compositing (blend Schermo) ---------- */
+function startStage(){
+  const vLocal = document.createElement('video');
+  const vRemote = document.createElement('video');
+  vLocal.srcObject = localStream; vLocal.muted = true; vLocal.play();
+  vRemote.srcObject = remoteStream; vRemote.muted = true; vRemote.play();
+
+  $('setup').style.display = 'none';
+  $('stage').style.display = 'block';
+  $('bar').style.display = 'flex';
+  const badge = $('badge');
+  badge.style.display = 'block'; badge.textContent = 'Stanza ' + roomCode;
+  setTimeout(()=>{ badge.style.display='none'; }, 4000);
+
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  function draw(){
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,cv.width,cv.height);
+    if(vLocal.videoWidth)  ctx.drawImage(vLocal, 0,0, cv.width, cv.height);
+    ctx.globalCompositeOperation = 'screen';           // i neri dell'overlay spariscono
+    if(vRemote.videoWidth) ctx.drawImage(vRemote, 0,0, cv.width, cv.height);
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+/* ---------- utility UI ---------- */
+function copyLink(){ const i=$('roomLink'); i.select();
+  navigator.clipboard.writeText(i.value); setStatus('Link copiato!','ok'); }
+function toggleFs(){ if(!document.fullscreenElement) $('stage').requestFullscreen();
+  else document.exitFullscreen(); }
+document.addEventListener('keydown', e=>{
+  if($('stage').style.display!=='block') return;
+  if(e.key==='Escape' && !document.fullscreenElement) location.reload();
+  if(e.key==='f'||e.key==='F') toggleFs();
+});
+
+// se apro il link con ?room=CODE vado dritto alla modalita' overlay
+if(new URLSearchParams(location.search).get("room")) showJoin();
+</script>
+</body>
+</html>
