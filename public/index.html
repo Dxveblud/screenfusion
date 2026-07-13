@@ -36,13 +36,13 @@
   .status{margin-top:20px;font-size:15px;color:var(--muted)}
   .status.ok{color:var(--ok)} .status.warn{color:var(--warn)}
   #stage{position:fixed;inset:0;background:#000;display:none;z-index:10}
-  #cv{width:100%;height:100%;display:block;object-fit:contain}
+  #cv,#fus{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:none}
   #bar{position:fixed;left:0;right:0;bottom:0;display:none;z-index:11;
     justify-content:center;gap:10px;padding:10px;background:linear-gradient(transparent,#000a)}
   #bar button{width:auto;padding:9px 16px;font-size:14px;margin:0;background:#ffffff1a}
   #bar button:hover{background:#ffffff30}
   #badge{position:fixed;top:12px;left:12px;z-index:11;background:#0009;color:#fff;
-    padding:7px 12px;border-radius:9px;font-size:13px;display:none}
+    padding:7px 12px;border-radius:9px;font-size:13px;display:none;max-width:90vw}
 </style>
 </head>
 <body>
@@ -51,40 +51,40 @@
   <h1>ScreenFusion</h1>
   <div class="sub">Sovrapponi due schermi in blend "Schermo" &mdash; guarda la fusione anche dal telefono</div>
 
-  <!-- SCHERMO PRINCIPALE (gioco) -->
   <button class="bMain" onclick="startMain()">
     SCHERMO PRINCIPALE (gioco)
-    <small>usa questo schermo e mostra la fusione</small>
+    <small>usa questo schermo, ricevi l'overlay e mostra la fusione</small>
   </button>
-
   <div class="card" id="mainCard">
     <label>Incolla qui il link dell'overlay, poi Collega</label>
     <div class="row">
       <input id="ovLink" placeholder="link o codice dell'overlay...">
       <button class="ghost" onclick="mainConnect()">Collega</button>
     </div>
-    <div class="mini">Il link te lo manda chi crea l'overlay (tu dal 2&deg; PC o un amico).</div>
+    <div class="mini">Il link te lo manda chi crea l'overlay. Piu' persone possono usare
+      lo stesso link: ognuno avra' la SUA fusione col proprio schermo.</div>
   </div>
 
   <div class="or">oppure</div>
 
-  <!-- CREA OVERLAY -->
   <button class="bOv" onclick="startOverlay()">
     CREA OVERLAY E INVIA IL LINK
-    <small>invia il tuo schermo (overlay su nero)</small>
+    <small>invia il tuo schermo (overlay su nero) a tutti</small>
   </button>
-
   <div class="card" id="ovCard">
-    <label>Link da mandare al PC principale:</label>
+    <label>Link da mandare a chi vuole l'overlay (Paolo, Francesco...):</label>
     <div class="linkbox" id="ovShare">...</div>
     <button class="ghost" style="width:100%" onclick="copy('ovShare')">Copia link</button>
-    <div class="mini" id="ovStatus2">In attesa che il PC principale si colleghi...</div>
+    <div class="mini" id="ovStatus2">Chiunque apra questo link avra' il tuo overlay sul suo schermo.</div>
   </div>
 
   <div class="status" id="status">Pronto.</div>
 </div>
 
-<div id="stage"><canvas id="cv" width="1920" height="1080"></canvas></div>
+<div id="stage">
+  <canvas id="cv" width="1920" height="1080"></canvas>
+  <video id="fus" muted playsinline></video>
+</div>
 <div id="badge"></div>
 <div id="bar">
   <button id="phoneBtn" onclick="copyPhone()" style="display:none">Link telefono</button>
@@ -95,146 +95,14 @@
 <script>
 const $ = id => document.getElementById(id);
 function setStatus(t,c){ const s=$('status'); s.textContent=t; s.className='status'+(c?' '+c:''); }
-function copy(id){ const v=$(id).textContent||$(id).value; navigator.clipboard.writeText(v);
-  setStatus('Copiato!','ok'); }
+function copy(id){ navigator.clipboard.writeText($(id).textContent||$(id).value); setStatus('Copiato!','ok'); }
 
-const ICE = [{ urls:"stun:stun.l.google.com:19302" }, { urls:"stun:stun1.l.google.com:19302" }];
-// chi ha bisogno del flusso di chi:
-const NEEDS = { main:["overlay"], phone:["main","overlay"], overlay:[] };
+const ICE=[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}];
+// chi ha bisogno del flusso di chi (il publisher inizia la connessione):
+//  sub (schermo principale) riceve dall'overlay
+//  phoneview (telefono) riceve la fusione gia' pronta dal fusionsrc (PC principale)
+const NEEDS={ sub:["overlay"], phoneview:["fusionsrc"] };
 
-let ws, myRole, roomCode, myId;
-let localStream = null;                 // solo main e overlay
-const conns = new Map();                // peerId -> {pc, role}
-const peers = new Map();                // peerId -> role
-const streams = { main:null, overlay:null };  // flussi ricevuti per ruolo
-
-function parseCode(s){
-  s = (s||"").trim();
-  const q = s.match(/[?&](?:room|main|overlay|view)=([A-Za-z0-9]{4})/);
-  if(q) return q[1].toUpperCase();
-  const m = s.match(/([A-Za-z0-9]{4})\s*$/);
-  return m ? m[1].toUpperCase() : "";
-}
-function wsConnect(){
-  return new Promise((res,rej)=>{
-    const proto = location.protocol==="https:" ? "wss":"ws";
-    ws = new WebSocket(proto+"://"+location.host);
-    ws.onopen=()=>res();
-    ws.onerror=()=>rej(new Error("server non raggiungibile"));
-    ws.onmessage=ev=>onMsg(JSON.parse(ev.data));
-  });
-}
-async function grab(){
-  return await navigator.mediaDevices.getDisplayMedia({
-    video:{ width:{ideal:1920}, height:{ideal:1080}, frameRate:{ideal:60} }, audio:false });
-}
-
-/* ---------------- avvii ---------------- */
-async function startMain(){
-  myRole="main";
-  try{ setStatus('Seleziona lo schermo di gioco...','warn'); localStream=await grab(); }
-  catch(e){ setStatus('Cattura annullata.','warn'); return; }
-  $('mainCard').classList.add('on'); $('ovCard').classList.remove('on');
-  const pre = new URLSearchParams(location.search).get("main")
-           || new URLSearchParams(location.search).get("room");
-  if(pre){ $('ovLink').value = pre; }
-  setStatus('Schermo pronto. Incolla il link dell\'overlay e premi Collega.');
-}
-async function mainConnect(){
-  const code = parseCode($('ovLink').value);
-  if(!code){ setStatus('Link/codice non valido.','warn'); return; }
-  roomCode=code;
-  try{ await wsConnect(); }catch(e){ setStatus('Errore: '+e.message,'warn'); return; }
-  ws.send(JSON.stringify({ t:"join", code, role:"main" }));
-  setStatus('Collegamento alla stanza...','warn');
-}
-
-async function startOverlay(){
-  myRole="overlay";
-  try{ setStatus('Seleziona lo schermo da inviare (overlay su nero)...','warn'); localStream=await grab(); }
-  catch(e){ setStatus('Cattura annullata.','warn'); return; }
-  try{ await wsConnect(); }catch(e){ setStatus('Errore: '+e.message,'warn'); return; }
-  ws.send(JSON.stringify({ t:"create", role:"overlay" }));
-}
-
-/* telefono / vista: URL con ?view=CODE */
-async function startPhone(code){
-  myRole="phone"; roomCode=code;
-  showStage();
-  setStatus('Collegamento...','warn');
-  try{ await wsConnect(); }catch(e){ setStatus('Errore: '+e.message,'warn'); return; }
-  ws.send(JSON.stringify({ t:"join", code, role:"phone" }));
-}
-
-/* ---------------- signaling ---------------- */
-function onMsg(m){
-  if(m.t==="created" || m.t==="joined"){
-    myId=m.id; roomCode=m.code;
-    (m.peers||[]).forEach(p=>{ peers.set(p.id,p.role); handlePeer(p); });
-    if(myRole==="overlay"){
-      const link = location.origin+location.pathname+"?main="+roomCode;
-      $('ovShare').textContent=link; $('ovCard').classList.add('on'); $('mainCard').classList.remove('on');
-      setStatus('Link pronto: mandalo al PC principale.','ok');
-    } else if(myRole==="main"){
-      showStage(); setStatus('In stanza, avvio fusione...','ok');
-      $('phoneBtn').style.display="inline-block";
-    } else if(myRole==="phone"){
-      setStatus('In stanza, attendo i flussi...','ok');
-    }
-  } else if(m.t==="peer-joined"){
-    peers.set(m.id,m.role); handlePeer({id:m.id,role:m.role});
-    if(myRole==="overlay" && m.role==="main") $('ovStatus2').textContent="PC principale collegato ✓";
-  } else if(m.t==="sig"){
-    onSig(m.from, m.payload);
-  } else if(m.t==="peer-left"){
-    const c=conns.get(m.id); if(c){ try{c.pc.close();}catch(e){} conns.delete(m.id); }
-    const r=peers.get(m.id); peers.delete(m.id);
-    if(r && streams[r]){ streams[r]=null; }
-  } else if(m.t==="error"){
-    setStatus(m.msg,'warn');
-  }
-}
-
-// inizio io la connessione verso 'peer' se sono un publisher di cui lui ha bisogno
-function handlePeer(peer){
-  if((NEEDS[peer.role]||[]).includes(myRole)) initiateTo(peer);
-}
-function newPC(peerId, peerRole){
-  const pc=new RTCPeerConnection({iceServers:ICE});
-  pc.onicecandidate=e=>{ if(e.candidate) sig(peerId,{ice:e.candidate}); };
-  pc.ontrack=e=>{ const s=e.streams[0]||new MediaStream([e.track]);
-    if(peerRole==="main"||peerRole==="overlay"){ streams[peerRole]=s; ensureDraw(); } };
-  pc.onconnectionstatechange=()=>{
-    if(pc.connectionState==="connected"){
-      if(myRole==="overlay") setStatus('Invio attivo','ok');
-      else setStatus('Fusione attiva','ok');
-    }
-  };
-  conns.set(peerId,{pc,role:peerRole});
-  return pc;
-}
-async function initiateTo(peer){
-  const pc=newPC(peer.id, peer.role);
-  if(localStream) localStream.getTracks().forEach(t=>pc.addTrack(t, localStream));
-  const offer=await pc.createOffer();
-  await pc.setLocalDescription(offer);
-  sig(peer.id,{sdp:pc.localDescription});
-}
-async function onSig(from, p){
-  let c=conns.get(from);
-  if(p.sdp){
-    if(p.sdp.type==="offer"){
-      const pc = c ? c.pc : newPC(from, peers.get(from));
-      await pc.setRemoteDescription(p.sdp);
-      const ans=await pc.createAnswer(); await pc.setLocalDescription(ans);
-      sig(from,{sdp:pc.localDescription});
-    } else if(c){ await c.pc.setRemoteDescription(p.sdp); }
-  } else if(p.ice && c){ try{ await c.pc.addIceCandidate(p.ice);}catch(e){} }
-}
-function sig(to,payload){ ws.send(JSON.stringify({t:"sig",to,payload})); }
-
-/* ---------------- compositing (blend Schermo) ---------------- */
-let drawing=false;
 const vids={};
 function videoFor(stream){
   if(!vids[stream.id]){
@@ -244,37 +112,146 @@ function videoFor(stream){
   }
   return vids[stream.id];
 }
-function baseStream(){ return myRole==="main" ? localStream : streams.main; }
-function overlayStream(){ return streams.overlay; }
 
-function showStage(){
-  $('home').style.display='none'; $('stage').style.display='block'; $('bar').style.display='flex';
-  const b=$('badge'); b.style.display='block'; b.textContent='Stanza '+(roomCode||'');
-  setTimeout(()=>{ b.style.display='none'; }, 4000);
+/* ---------- connessione a una stanza (riusabile) ---------- */
+function RoomConn(opts){
+  const self={ role:opts.role, code:opts.code, id:null, peers:new Map(), conns:new Map() };
+  const proto=location.protocol==="https:"?"wss":"ws";
+  const ws=new WebSocket(proto+"://"+location.host);
+  self.ws=ws;
+  ws.onopen=()=> ws.send(JSON.stringify(opts.create
+    ? {t:"create",role:self.role} : {t:"join",code:self.code,role:self.role}));
+  ws.onmessage=ev=>handle(JSON.parse(ev.data));
+
+  const sig=(to,payload)=>ws.send(JSON.stringify({t:"sig",to,payload}));
+  function newPC(peerId,peerRole){
+    const pc=new RTCPeerConnection({iceServers:ICE});
+    pc.onicecandidate=e=>{ if(e.candidate) sig(peerId,{ice:e.candidate}); };
+    pc.ontrack=e=>{ const s=e.streams[0]||new MediaStream([e.track]);
+      opts.onStream && opts.onStream(peerRole,s); };
+    pc.onconnectionstatechange=()=>{ if(pc.connectionState==="connected") opts.onUp&&opts.onUp(); };
+    self.conns.set(peerId,{pc,role:peerRole});
+    return pc;
+  }
+  async function initiateTo(p){
+    const pc=newPC(p.id,p.role);
+    const st=opts.getTracks&&opts.getTracks();
+    if(st) st.getTracks().forEach(t=>pc.addTrack(t,st));
+    const o=await pc.createOffer(); await pc.setLocalDescription(o); sig(p.id,{sdp:pc.localDescription});
+  }
+  function handlePeer(p){ self.peers.set(p.id,p.role);
+    if((NEEDS[p.role]||[]).includes(self.role)) initiateTo(p); }
+  async function onSig(from,p){
+    let c=self.conns.get(from);
+    if(p.sdp){
+      if(p.sdp.type==="offer"){ const pc=c?c.pc:newPC(from,self.peers.get(from));
+        await pc.setRemoteDescription(p.sdp);
+        const a=await pc.createAnswer(); await pc.setLocalDescription(a); sig(from,{sdp:pc.localDescription});
+      } else if(c){ await c.pc.setRemoteDescription(p.sdp); }
+    } else if(p.ice&&c){ try{await c.pc.addIceCandidate(p.ice);}catch(e){} }
+  }
+  function handle(m){
+    if(m.t==="created"||m.t==="joined"){ self.id=m.id; self.code=m.code;
+      (m.peers||[]).forEach(handlePeer); opts.onReady&&opts.onReady(self);
+    } else if(m.t==="peer-joined"){ handlePeer({id:m.id,role:m.role}); opts.onPeer&&opts.onPeer(m.role);
+    } else if(m.t==="sig"){ onSig(m.from,m.payload);
+    } else if(m.t==="peer-left"){ const c=self.conns.get(m.id);
+      if(c){try{c.pc.close();}catch(e){}} self.conns.delete(m.id); self.peers.delete(m.id);
+    } else if(m.t==="error"){ opts.onError&&opts.onError(m.msg); }
+  }
+  return self;
 }
-function ensureDraw(){ if(drawing) return; drawing=true; requestAnimationFrame(draw); }
-function draw(){
+
+async function grab(){
+  return await navigator.mediaDevices.getDisplayMedia({
+    video:{ width:{ideal:1920}, height:{ideal:1080}, frameRate:{ideal:60} }, audio:false });
+}
+function parseCode(s){ s=(s||"").trim();
+  const q=s.match(/[?&](?:room|main|overlay|view)=([A-Za-z0-9]{4})/); if(q) return q[1].toUpperCase();
+  const m=s.match(/([A-Za-z0-9]{4})\s*$/); return m?m[1].toUpperCase():""; }
+
+/* ---------- stato ---------- */
+let gameStream=null, overlayStream=null, fusionStream=null, viewerCode=null;
+
+/* ---------- OVERLAY (Davide) ---------- */
+async function startOverlay(){
+  let s; try{ setStatus('Seleziona lo schermo da inviare (overlay su nero)...','warn'); s=await grab(); }
+  catch(e){ setStatus('Cattura annullata.','warn'); return; }
+  RoomConn({ role:"overlay", create:true, getTracks:()=>s,
+    onReady:c=>{ const link=location.origin+location.pathname+"?main="+c.code;
+      $('ovShare').textContent=link; $('ovCard').classList.add('on'); $('mainCard').classList.remove('on');
+      setStatus('Link pronto: mandalo a chi vuole l\'overlay.','ok'); },
+    onPeer:r=>{ if(r==="sub") $('ovStatus2').textContent="Uno schermo si e' collegato ✓ (puoi averne piu' d'uno)"; },
+    onError:m=>setStatus(m,'warn') });
+}
+
+/* ---------- SCHERMO PRINCIPALE (Paolo/Francesco) ---------- */
+async function startMain(){
+  try{ setStatus('Seleziona lo schermo di gioco...','warn'); gameStream=await grab(); }
+  catch(e){ setStatus('Cattura annullata.','warn'); return; }
+  $('mainCard').classList.add('on'); $('ovCard').classList.remove('on');
+  const pre=new URLSearchParams(location.search).get("main")||new URLSearchParams(location.search).get("room");
+  if(pre) $('ovLink').value=pre;
+  setStatus('Schermo pronto. Incolla il link dell\'overlay e premi Collega.');
+}
+function mainConnect(){
+  const code=parseCode($('ovLink').value);
+  if(!code){ setStatus('Link/codice non valido.','warn'); return; }
+
+  // avvia canvas + fusione e cattura la fusione per i telefoni
+  showStage('cv');
+  startDrawMain();
+  fusionStream=$('cv').captureStream(60);
+
+  // stanza personale per i miei telefoni (trasmetto la fusione gia' pronta)
+  RoomConn({ role:"fusionsrc", create:true, getTracks:()=>fusionStream,
+    onReady:c=>{ viewerCode=c.code; $('phoneBtn').style.display="inline-block"; } });
+
+  // ricevo l'overlay di Davide
+  RoomConn({ role:"sub", code, onStream:(r,s)=>{ if(r==="overlay"){ overlayStream=s;
+      setStatus('Fusione attiva','ok'); } },
+    onError:m=>setStatus(m,'warn') });
+
+  badge('La tua fusione - stanza '+code);
+}
+function startDrawMain(){
   const cv=$('cv'), ctx=cv.getContext('2d');
-  ctx.globalCompositeOperation='source-over';
-  ctx.fillStyle='#000'; ctx.fillRect(0,0,cv.width,cv.height);
-  const b=baseStream(); if(b){ const v=videoFor(b); if(v.videoWidth) ctx.drawImage(v,0,0,cv.width,cv.height); }
-  ctx.globalCompositeOperation='screen';
-  const o=overlayStream(); if(o){ const v=videoFor(o); if(v.videoWidth) ctx.drawImage(v,0,0,cv.width,cv.height); }
-  requestAnimationFrame(draw);
+  (function loop(){
+    ctx.globalCompositeOperation='source-over';
+    ctx.fillStyle='#000'; ctx.fillRect(0,0,cv.width,cv.height);
+    if(gameStream){ const v=videoFor(gameStream); if(v.videoWidth) ctx.drawImage(v,0,0,cv.width,cv.height); }
+    ctx.globalCompositeOperation='screen';
+    if(overlayStream){ const v=videoFor(overlayStream); if(v.videoWidth) ctx.drawImage(v,0,0,cv.width,cv.height); }
+    requestAnimationFrame(loop);
+  })();
 }
 
-/* ---------------- UI vista ---------------- */
-function copyPhone(){ const link=location.origin+location.pathname+"?view="+roomCode;
-  navigator.clipboard.writeText(link); setStatus('Link telefono copiato: aprilo sul telefono!','ok'); }
-function toggleFs(){ if(!document.fullscreenElement) $('stage').requestFullscreen(); else document.exitFullscreen(); }
-document.addEventListener('keydown', e=>{
-  if($('stage').style.display!=='block') return;
-  if(e.key==='f'||e.key==='F') toggleFs();
-});
+/* ---------- TELEFONO / VISTA ---------- */
+function startPhone(code){
+  showStage('fus');
+  setStatus('Collegamento...','warn'); badge('Vista - stanza '+code);
+  RoomConn({ role:"phoneview", code, onStream:(r,s)=>{ if(r==="fusionsrc"){
+      const f=$('fus'); f.srcObject=s; f.play().catch(()=>{}); } },
+    onError:m=>{ badge(m); } });
+}
 
-// avvio in base all'URL
-(function(){
-  const q=new URLSearchParams(location.search);
+/* ---------- UI ---------- */
+function showStage(which){
+  $('home').style.display='none'; $('stage').style.display='block'; $('bar').style.display='flex';
+  $('cv').style.display = which==='cv'?'block':'none';
+  $('fus').style.display= which==='fus'?'block':'none';
+}
+function badge(t){ const b=$('badge'); b.style.display='block'; b.textContent=t;
+  setTimeout(()=>{ b.style.display='none'; }, 5000); }
+function copyPhone(){ const link=location.origin+location.pathname+"?view="+viewerCode;
+  navigator.clipboard.writeText(link); setStatus('Link telefono copiato: aprilo sul telefono!','ok');
+  badge('Link telefono copiato ✓'); }
+function toggleFs(){ if(!document.fullscreenElement) $('stage').requestFullscreen(); else document.exitFullscreen(); }
+document.addEventListener('keydown', e=>{ if($('stage').style.display!=='block') return;
+  if(e.key==='f'||e.key==='F') toggleFs(); });
+
+// avvio da URL
+(function(){ const q=new URLSearchParams(location.search);
   if(q.get("view")) startPhone(q.get("view").toUpperCase());
   else if(q.get("main")||q.get("room")) setStatus('Premi "SCHERMO PRINCIPALE" per collegarti all\'overlay.');
 })();
