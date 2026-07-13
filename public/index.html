@@ -176,10 +176,16 @@
       <option value="high">Alta (piu' banda)</option>
       <option value="max">Massima (LAN/fibra)</option>
     </select></div>
+  <div class="srow"><span>Latenza (buffer)</span>
+    <select id="setJit">
+      <option value="0" selected>Minima</option>
+      <option value="100">Bilanciata</option>
+      <option value="250">Fluida</option>
+    </select></div>
   <div class="srow"><span>Se la banda cala</span>
     <select id="setPref">
-      <option value="maintain-framerate">Tieni FPS</option>
-      <option value="maintain-resolution" selected>Tieni risoluzione</option>
+      <option value="maintain-framerate" selected>Tieni i 60 FPS</option>
+      <option value="maintain-resolution">Tieni la risoluzione</option>
     </select></div>
   <div class="srow"><span>Fusione</span>
     <select id="setBlend">
@@ -300,7 +306,10 @@ async function loadIce(){
   }catch(e){ /* si resta col fallback STUN */ }
 }
 
-const SET={ w:1920, h:1080, fps:60, pref:"maintain-resolution", blend:"screen", qual:"auto" };
+const SET={ w:1920, h:1080, fps:60, pref:"maintain-framerate", blend:"screen", qual:"auto", jitter:0 };
+// hint di contenuto: "motion" = bassa latenza + priorita' ai 60fps (default);
+// "detail" solo in qualita' Massima, dove si preferisce la nitidezza del testo.
+function contentHint(){ return SET.qual==="max" ? "detail" : "motion"; }
 const BLENDS=[["screen","Schermo"],["lighten","Chiarisci"],["lighter","Additivo"],
   ["multiply","Moltiplica"],["overlay","Sovrapposizione"],["difference","Differenza"]];
 function readSettings(){
@@ -309,6 +318,13 @@ function readSettings(){
   const p=($('setPref')||{}).value; if(p) SET.pref=p;
   const b=($('setBlend')||{}).value; if(b) SET.blend=b;
   const q=($('setQual')||{}).value; if(q) SET.qual=q;
+  const j=($('setJit')||{}).value; if(j!=null&&j!=="") SET.jitter=Number(j);
+}
+// riduce al minimo il jitter buffer del ricevitore: e' la latenza nascosta
+// piu' grossa in WebRTC. 0 = minima (ottima su ethernet/LAN).
+function lowLatencyReceiver(r){
+  try{ if('jitterBufferTarget' in r) r.jitterBufferTarget = SET.jitter; }catch(e){}
+  try{ r.playoutDelayHint = SET.jitter/1000; }catch(e){}
 }
 // bitrate legato a risoluzione*fps (bit/pixel) invece di un cap fisso enorme
 function targetBitrate(){
@@ -387,7 +403,8 @@ function RoomConn(opts){
   function newPC(peerId,peerRole,didInitiate){
     const pc=new RTCPeerConnection({iceServers:ICE, iceCandidatePoolSize:2});
     pc.onicecandidate=e=>{ if(e.candidate) sig(peerId,{ice:e.candidate}); };
-    pc.ontrack=e=>{ const s=e.streams[0]||new MediaStream([e.track]); opts.onStream&&opts.onStream(peerRole,s); };
+    pc.ontrack=e=>{ lowLatencyReceiver(e.receiver);
+      const s=e.streams[0]||new MediaStream([e.track]); opts.onStream&&opts.onStream(peerRole,s); };
     pc.onconnectionstatechange=()=>{ opts.onConn&&opts.onConn(peerRole,pc.connectionState,pc); if(pc.connectionState==="connected") opts.onUp&&opts.onUp(pc); };
     pc.oniceconnectionstatechange=()=>{
       const st=pc.iceConnectionState;
@@ -435,7 +452,7 @@ function RoomConn(opts){
 async function grab(){
   const s=await navigator.mediaDevices.getDisplayMedia({
     video:{ width:{ideal:SET.w}, height:{ideal:SET.h}, frameRate:{ideal:SET.fps, max:SET.fps} }, audio:false });
-  const t=s.getVideoTracks()[0]; if(t) t.contentHint="detail"; return s;
+  const t=s.getVideoTracks()[0]; if(t) t.contentHint=contentHint(); return s;
 }
 function parseCode(s){ s=(s||"").trim();
   const q=s.match(/[?&](?:room|main|overlay|view)=([A-Za-z0-9]{4})/); if(q) return q[1].toUpperCase();
@@ -480,7 +497,7 @@ function mainConnect(){
   showStage('cv'); startDrawMain();
   setConn('connecting','In collegamento all\'overlay…');
   fusionStream=$('cv').captureStream(SET.fps);
-  const ft=fusionStream.getVideoTracks()[0]; if(ft) ft.contentHint="detail";
+  const ft=fusionStream.getVideoTracks()[0]; if(ft) ft.contentHint=contentHint();
   // sorgente della fusione per i telefoni/altri schermi
   mainSrc=RoomConn({ role:"fusionsrc", create:true, getTracks:()=>fusionStream,
     onReady:c=>{ viewerCode=c.code; $('phoneBtn').style.display="inline-block"; },
@@ -499,7 +516,7 @@ function mainConnect(){
 }
 
 function startDrawMain(){
-  const cv=$('cv'), ctx=cv.getContext('2d',{alpha:false});
+  const cv=$('cv'), ctx=cv.getContext('2d',{alpha:false, desynchronized:true});
   (function loop(){
     ctx.globalCompositeOperation='source-over'; ctx.fillStyle='#000'; ctx.fillRect(0,0,cv.width,cv.height);
     if(gameStream){ const v=videoFor(gameStream); if(v.videoWidth) ctx.drawImage(v,0,0,cv.width,cv.height); }

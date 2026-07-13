@@ -9,6 +9,9 @@ installare nulla. Pensato per overlay da streaming.
   compreso 4G/5G e NAT simmetrico dove la P2P diretta fallisce.
 - Riconnessione automatica del signaling, ICE-restart al primo intoppo, HUD
   con FPS/bitrate/latenza (tasto **S**) e scelta qualita' nel pannello ⚙.
+- **Latenza minima**: jitter buffer del ricevitore azzerato (`jitterBufferTarget`),
+  hint `motion` + codec H264 hardware, canvas `desynchronized`, e priorita' ai
+  **60 FPS** se la banda cala. Impostazioni "Latenza" e "Se la banda cala" nel ⚙.
 
 ## TURN (relay per reti "difficili")
 
