@@ -518,8 +518,7 @@ async function applyLive(){
   await applyCaptureConstraints();
   retuneAll();
   // clip: accendi/spegni il buffer secondo la scelta
-  if(SET.clipMin>0){ if(!recorder && recStream()){ startBuffer(); }
-    else if(recorder){ $('clipBtn').textContent='💾 Salva '+SET.clipMin+' min'; } }
+  if(SET.clipMin>0){ if(!recorder && recStream()) startBuffer(); }
   else stopBuffer();
   if($('stage').style.display==='block'){ clearTimeout(liveT); liveT=setTimeout(()=>toast('Impostazioni applicate ✓','ok'),120); }
 }
@@ -655,56 +654,74 @@ async function pollStats(){
   }catch(e){}
 }
 
-/* ---- CLIP: buffer di registrazione a scorrimento (instant replay) ---- */
-let recorder=null, recChunks=[], recHeader=null;
-const REC_SLICE=1000; // ms per chunk
+/* ---- CLIP: instant replay a SEGMENTI (sempre riproducibile) ----
+   Registrare in continuo e buttare i chunk vecchi NON funziona: senza il
+   keyframe iniziale il file si vede nero. Qui registro segmenti continui: ogni
+   N minuti "ruoto" il recorder e tengo il segmento precedente gia' completo.
+   Al salvataggio esporto un segmento INTERO (di un solo recorder) -> valido. */
+let recorder=null, recChunks=[], recStart=0, prevBlob=null;
 function recStream(){
-  if(fusionStream) return fusionStream;               // PC di gioco: registra la fusione
-  const f=$('fus'); if(f&&f.srcObject) return f.srcObject; // telefono: registra il feed ricevuto
+  if(fusionStream) return fusionStream;               // PC di gioco: la fusione
+  const f=$('fus'); if(f&&f.srcObject) return f.srcObject; // telefono: il feed ricevuto
   return null;
+}
+function winMs(){ return Math.max(SET.clipMin,1)*60000; }
+function recBitrate(){ return Math.min(Math.max(Math.round(SET.w*SET.h*SET.fps*0.10), 5_000_000), 14_000_000); }
+function makeRecorder(st){
+  if(!(window.MediaRecorder&&MediaRecorder.isTypeSupported)) return null;
+  let mime='video/webm;codecs=vp9';
+  if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm;codecs=vp8';
+  if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm';
+  try{ return new MediaRecorder(st,{mimeType:mime, videoBitsPerSecond:recBitrate()}); }catch(e){ return null; }
+}
+function armRecorder(r, arr){
+  r.ondataavailable=e=>{
+    if(e.data&&e.data.size) arr.push(e.data);
+    if(recorder===r && performance.now()-recStart>=winMs()) rotate();
+  };
 }
 function startBuffer(){
   if(recorder||SET.clipMin<=0) return;
   const st=recStream(); if(!st) return;
-  let mime='video/webm;codecs=vp9';
-  if(!(window.MediaRecorder&&MediaRecorder.isTypeSupported)) return;
-  if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm;codecs=vp8';
-  if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm';
-  // bitrate della registrazione locale legato a risoluzione*fps -> nitido a 1080p.
-  // e' in RAM, quindi cappo per non esagerare col consumo.
-  const recBr=Math.min(Math.max(Math.round(SET.w*SET.h*SET.fps*0.11), 6_000_000), 16_000_000);
-  try{ recorder=new MediaRecorder(st,{mimeType:mime, videoBitsPerSecond:recBr}); }catch(e){ return; }
-  recChunks=[]; recHeader=null;
-  recorder.ondataavailable=e=>{
-    if(!e.data||!e.data.size) return;
-    if(!recHeader) recHeader=e.data;                  // 1° chunk = header/init
-    recChunks.push({t:performance.now(), blob:e.data});
-    const cutoff=performance.now()-(SET.clipMin*60000+2000);
-    while(recChunks.length>1 && recChunks[0].t<cutoff) recChunks.shift();
-  };
-  try{ recorder.start(REC_SLICE); }catch(e){ recorder=null; return; }
+  const r=makeRecorder(st); if(!r) return;
+  const arr=[]; recorder=r; recChunks=arr; recStart=performance.now(); prevBlob=null;
+  armRecorder(r, arr);
+  try{ r.start(1000); }catch(e){ recorder=null; return; }
   $('recDot').style.display='inline-flex';
   $('clipBtn').style.display='inline-block';
-  $('clipBtn').textContent='💾 Salva '+SET.clipMin+' min';
+  $('clipBtn').textContent='💾 Salva clip';
+}
+function rotate(){
+  const old=recorder, oldArr=recChunks;
+  old.ondataavailable=e=>{ if(e.data&&e.data.size) oldArr.push(e.data); };
+  old.onstop=()=>{ try{ prevBlob=new Blob(oldArr,{type:'video/webm'}); }catch(e){} };
+  try{ old.stop(); }catch(e){}
+  const st=recStream(); const r=st?makeRecorder(st):null;
+  if(!r){ recorder=null; return; }
+  const arr=[]; recorder=r; recChunks=arr; recStart=performance.now();
+  armRecorder(r, arr);
+  try{ r.start(1000); }catch(e){ recorder=null; }
 }
 function stopBuffer(){
   if(recorder){ try{recorder.stop();}catch(e){} recorder=null; }
-  recChunks=[]; recHeader=null;
+  recChunks=[]; prevBlob=null;
   $('recDot').style.display='none'; $('clipBtn').style.display='none';
 }
 function saveClip(){
-  if(!recorder||!recChunks.length){ toast('Ancora niente da salvare','warn'); return; }
-  const parts=[];
-  if(recHeader && recChunks[0].blob!==recHeader) parts.push(recHeader); // header sempre in testa
-  for(const c of recChunks) parts.push(c.blob);
-  const blob=new Blob(parts,{type:'video/webm'});
+  if(!recorder){ toast('Registrazione non attiva','warn'); return; }
+  // esporta un segmento continuo intero (mai frammenti tagliati)
+  const curLen=performance.now()-recStart;
+  let blob=null;
+  if(recChunks.length && (curLen>=winMs()*0.5 || !prevBlob)) blob=new Blob(recChunks,{type:'video/webm'});
+  else if(prevBlob) blob=prevBlob;
+  if(!blob||!blob.size){ toast('Ancora niente da salvare','warn'); return; }
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   const ts=new Date().toISOString().replace(/[:T]/g,'-').replace(/\..+/,'');
   a.href=url; a.download='clip-'+ts+'.webm';
   document.body.appendChild(a); a.click();
   setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 5000);
-  toast('Clip salvata ✓ ('+SET.clipMin+' min)','ok');
+  toast('Clip salvata ✓','ok');
 }
 
 function showStage(which){
