@@ -21,6 +21,11 @@
   .bMain{background:var(--main)} .bMain:hover{background:var(--main-h)}
   .bOv{background:var(--ov)} .bOv:hover{background:var(--ov-h)}
   .or{text-align:center;color:var(--muted);margin:6px 0}
+  .settings{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+  .sfield{flex:1;min-width:120px}
+  .sfield label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
+  select{width:100%;background:#171a22;color:var(--text);border:1px solid var(--line);
+    border-radius:9px;padding:9px;font-size:14px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
     padding:16px;margin-top:16px;display:none}
   .card.on{display:block}
@@ -50,6 +55,33 @@
 <div id="home">
   <h1>ScreenFusion</h1>
   <div class="sub">Sovrapponi due schermi in blend "Schermo" &mdash; guarda la fusione anche dal telefono</div>
+
+  <div class="settings">
+    <div class="sfield">
+      <label>Risoluzione max</label>
+      <select id="setRes">
+        <option value="1920x1080">1920 &times; 1080 (max)</option>
+        <option value="1600x900">1600 &times; 900</option>
+        <option value="1280x720">1280 &times; 720</option>
+        <option value="960x540">960 &times; 540</option>
+      </select>
+    </div>
+    <div class="sfield">
+      <label>FPS</label>
+      <select id="setFps">
+        <option value="120">120</option>
+        <option value="60" selected>60</option>
+        <option value="30">30</option>
+      </select>
+    </div>
+    <div class="sfield">
+      <label>Se la banda cala</label>
+      <select id="setPref">
+        <option value="maintain-framerate">Tieni gli FPS (cala risoluzione)</option>
+        <option value="maintain-resolution" selected>Tieni la risoluzione (cala FPS)</option>
+      </select>
+    </div>
+  </div>
 
   <button class="bMain" onclick="startMain()">
     SCHERMO PRINCIPALE (gioco)
@@ -100,6 +132,14 @@ function copy(id){ navigator.clipboard.writeText($(id).textContent||$(id).value)
 const ICE=[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}];
 const MAXBR=50_000_000;   // tetto bitrate video (50 Mbps): qualita' di fatto nativa a 1080p
 
+// impostazioni scelte dall'utente (risoluzione max, fps, priorita')
+const SET={ w:1920, h:1080, fps:60, pref:"maintain-resolution" };
+function readSettings(){
+  const r=($('setRes')||{}).value; if(r){ const [w,h]=r.split("x").map(Number); SET.w=w; SET.h=h; }
+  const f=($('setFps')||{}).value; if(f) SET.fps=Number(f);
+  const p=($('setPref')||{}).value; if(p) SET.pref=p;
+}
+
 // forza alta qualita': bitrate alto + mantieni la risoluzione (semmai cala gli fps)
 async function tuneSenders(pc){
   for(const s of pc.getSenders()){
@@ -107,8 +147,8 @@ async function tuneSenders(pc){
     const p=s.getParameters();
     if(!p.encodings || !p.encodings.length) p.encodings=[{}];
     p.encodings[0].maxBitrate=MAXBR;
-    p.encodings[0].maxFramerate=60;
-    p.degradationPreference="maintain-resolution";
+    p.encodings[0].maxFramerate=SET.fps;
+    p.degradationPreference=SET.pref;
     try{ await s.setParameters(p); }catch(e){}
   }
 }
@@ -180,7 +220,8 @@ function RoomConn(opts){
 
 async function grab(){
   const s=await navigator.mediaDevices.getDisplayMedia({
-    video:{ width:{ideal:1920}, height:{ideal:1080}, frameRate:{ideal:60} }, audio:false });
+    video:{ width:{ideal:SET.w}, height:{ideal:SET.h}, frameRate:{ideal:SET.fps, max:SET.fps} },
+    audio:false });
   const t=s.getVideoTracks()[0];
   if(t) t.contentHint="detail";   // grafica nitida, non video sfumato
   return s;
@@ -194,6 +235,7 @@ let gameStream=null, overlayStream=null, fusionStream=null, viewerCode=null;
 
 /* ---------- OVERLAY (Davide) ---------- */
 async function startOverlay(){
+  readSettings();
   let s; try{ setStatus('Seleziona lo schermo da inviare (overlay su nero)...','warn'); s=await grab(); }
   catch(e){ setStatus('Cattura annullata.','warn'); return; }
   RoomConn({ role:"overlay", create:true, getTracks:()=>s,
@@ -206,6 +248,7 @@ async function startOverlay(){
 
 /* ---------- SCHERMO PRINCIPALE (Paolo/Francesco) ---------- */
 async function startMain(){
+  readSettings();
   try{ setStatus('Seleziona lo schermo di gioco...','warn'); gameStream=await grab(); }
   catch(e){ setStatus('Cattura annullata.','warn'); return; }
   $('mainCard').classList.add('on'); $('ovCard').classList.remove('on');
@@ -218,9 +261,10 @@ function mainConnect(){
   if(!code){ setStatus('Link/codice non valido.','warn'); return; }
 
   // avvia canvas + fusione e cattura la fusione per i telefoni
+  $('cv').width=SET.w; $('cv').height=SET.h;
   showStage('cv');
   startDrawMain();
-  fusionStream=$('cv').captureStream(60);
+  fusionStream=$('cv').captureStream(SET.fps);
   const ft=fusionStream.getVideoTracks()[0]; if(ft) ft.contentHint="detail";
 
   // stanza personale per i miei telefoni (trasmetto la fusione gia' pronta)
