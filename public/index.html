@@ -7,32 +7,32 @@
 <style>
   :root{
     --bg:#0f1117; --card:#20232e; --line:#2c3040; --text:#ebedf3; --muted:#8b91a3;
-    --recv:#5865f2; --recv-h:#6e7aff; --send:#23a05a; --send-h:#2db969;
+    --main:#5865f2; --main-h:#6e7aff; --ov:#23a05a; --ov-h:#2db969;
     --ok:#57dc82; --warn:#ffbe46;
   }
   *{box-sizing:border-box;font-family:"Segoe UI",system-ui,sans-serif}
   body{margin:0;background:var(--bg);color:var(--text);min-height:100vh}
-  #setup{max-width:560px;margin:0 auto;padding:34px 22px}
+  #home{max-width:560px;margin:0 auto;padding:34px 22px}
   h1{font-size:31px;margin:0 0 4px}
-  .sub{color:var(--muted);font-size:14px;margin-bottom:26px}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:24px}
   button{border:0;border-radius:14px;color:#fff;font-size:17px;font-weight:600;
     width:100%;padding:16px;cursor:pointer;transition:background .15s;margin:8px 0}
   button small{display:block;font-weight:400;font-size:13px;opacity:.9;margin-top:3px}
-  .recv{background:var(--recv)} .recv:hover{background:var(--recv-h)}
-  .send{background:var(--send)} .send:hover{background:var(--send-h)}
-  button:disabled{background:#2d303a;color:var(--muted);cursor:default}
+  .bMain{background:var(--main)} .bMain:hover{background:var(--main-h)}
+  .bOv{background:var(--ov)} .bOv:hover{background:var(--ov-h)}
   .or{text-align:center;color:var(--muted);margin:6px 0}
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
     padding:16px;margin-top:16px;display:none}
   .card.on{display:block}
-  .code{font-size:34px;font-weight:700;letter-spacing:6px;text-align:center;
-    color:var(--ok);margin:6px 0}
-  .linkrow{display:flex;gap:8px;margin-top:10px}
+  label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+  .row{display:flex;gap:8px}
   input{flex:1;background:#171a22;color:var(--text);border:1px solid var(--line);
-    border-radius:10px;padding:11px;font-size:15px}
-  .mini{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5}
-  .ghost{background:#3a3f4d;font-size:14px;padding:11px;width:auto;margin:0}
+    border-radius:10px;padding:12px;font-size:15px}
+  .ghost{background:#3a3f4d;font-size:14px;padding:12px 16px;width:auto;margin:0}
   .ghost:hover{background:#474d5e}
+  .linkbox{font-family:monospace;font-size:13px;word-break:break-all;
+    background:#171a22;border:1px solid var(--line);border-radius:10px;padding:12px;margin:8px 0}
+  .mini{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.6}
   .status{margin-top:20px;font-size:15px;color:var(--muted)}
   .status.ok{color:var(--ok)} .status.warn{color:var(--warn)}
   #stage{position:fixed;inset:0;background:#000;display:none;z-index:10}
@@ -47,40 +47,38 @@
 </head>
 <body>
 
-<div id="setup">
+<div id="home">
   <h1>ScreenFusion</h1>
-  <div class="sub">Sovrapponi due schermi in blend "Schermo" &mdash; dal browser, senza installare nulla</div>
+  <div class="sub">Sovrapponi due schermi in blend "Schermo" &mdash; guarda la fusione anche dal telefono</div>
 
-  <button class="recv" onclick="hostGame()">
-    PC di GIOCO
-    <small>usa questo schermo e mostra qui la fusione</small>
-  </button>
-  <div class="or">oppure</div>
-  <button class="send" onclick="showJoin()">
-    PC OVERLAY
-    <small>invia il tuo schermo a una stanza esistente</small>
+  <!-- SCHERMO PRINCIPALE (gioco) -->
+  <button class="bMain" onclick="startMain()">
+    SCHERMO PRINCIPALE (gioco)
+    <small>usa questo schermo e mostra la fusione</small>
   </button>
 
-  <!-- host: mostra codice + link -->
-  <div class="card" id="hostCard">
-    <div class="mini">Codice stanza &mdash; condividilo con chi manda l'overlay:</div>
-    <div class="code" id="roomCode">----</div>
-    <div class="linkrow">
-      <input id="roomLink" readonly>
-      <button class="ghost" onclick="copyLink()">Copia link</button>
+  <div class="card" id="mainCard">
+    <label>Incolla qui il link dell'overlay, poi Collega</label>
+    <div class="row">
+      <input id="ovLink" placeholder="link o codice dell'overlay...">
+      <button class="ghost" onclick="mainConnect()">Collega</button>
     </div>
-    <div class="mini">Chi apre questo link deve solo premere "condividi schermo".
-      La fusione parte qui in automatico appena si collega.</div>
+    <div class="mini">Il link te lo manda chi crea l'overlay (tu dal 2&deg; PC o un amico).</div>
   </div>
 
-  <!-- guest: inserisci codice -->
-  <div class="card" id="joinCard">
-    <div class="mini">Inserisci il codice della stanza del PC di gioco:</div>
-    <div class="linkrow">
-      <input id="joinCode" placeholder="ES. K7QP" maxlength="4"
-             style="text-transform:uppercase;letter-spacing:4px;text-align:center;font-size:20px">
-      <button class="ghost" onclick="joinRoom()">Entra</button>
-    </div>
+  <div class="or">oppure</div>
+
+  <!-- CREA OVERLAY -->
+  <button class="bOv" onclick="startOverlay()">
+    CREA OVERLAY E INVIA IL LINK
+    <small>invia il tuo schermo (overlay su nero)</small>
+  </button>
+
+  <div class="card" id="ovCard">
+    <label>Link da mandare al PC principale:</label>
+    <div class="linkbox" id="ovShare">...</div>
+    <button class="ghost" style="width:100%" onclick="copy('ovShare')">Copia link</button>
+    <div class="mini" id="ovStatus2">In attesa che il PC principale si colleghi...</div>
   </div>
 
   <div class="status" id="status">Pronto.</div>
@@ -89,169 +87,197 @@
 <div id="stage"><canvas id="cv" width="1920" height="1080"></canvas></div>
 <div id="badge"></div>
 <div id="bar">
+  <button id="phoneBtn" onclick="copyPhone()" style="display:none">Link telefono</button>
   <button onclick="toggleFs()">Schermo intero (F)</button>
-  <button onclick="location.reload()">Esci (ESC)</button>
+  <button onclick="location.href=location.origin+location.pathname">Esci</button>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
 function setStatus(t,c){ const s=$('status'); s.textContent=t; s.className='status'+(c?' '+c:''); }
+function copy(id){ const v=$(id).textContent||$(id).value; navigator.clipboard.writeText(v);
+  setStatus('Copiato!','ok'); }
 
-const ICE = [{ urls: "stun:stun.l.google.com:19302" },
-             { urls: "stun:stun1.l.google.com:19302" }];
+const ICE = [{ urls:"stun:stun.l.google.com:19302" }, { urls:"stun:stun1.l.google.com:19302" }];
+// chi ha bisogno del flusso di chi:
+const NEEDS = { main:["overlay"], phone:["main","overlay"], overlay:[] };
 
-let ws, pc, role, roomCode, localStream, remoteStream;
+let ws, myRole, roomCode, myId;
+let localStream = null;                 // solo main e overlay
+const conns = new Map();                // peerId -> {pc, role}
+const peers = new Map();                // peerId -> role
+const streams = { main:null, overlay:null };  // flussi ricevuti per ruolo
 
-function connectWS(){
+function parseCode(s){
+  s = (s||"").trim();
+  const q = s.match(/[?&](?:room|main|overlay|view)=([A-Za-z0-9]{4})/);
+  if(q) return q[1].toUpperCase();
+  const m = s.match(/([A-Za-z0-9]{4})\s*$/);
+  return m ? m[1].toUpperCase() : "";
+}
+function wsConnect(){
   return new Promise((res,rej)=>{
-    const proto = location.protocol === "https:" ? "wss" : "ws";
-    ws = new WebSocket(proto + "://" + location.host);
-    ws.onopen = ()=>res();
-    ws.onerror = ()=>rej(new Error("server non raggiungibile"));
-    ws.onmessage = ev => onSignal(JSON.parse(ev.data));
+    const proto = location.protocol==="https:" ? "wss":"ws";
+    ws = new WebSocket(proto+"://"+location.host);
+    ws.onopen=()=>res();
+    ws.onerror=()=>rej(new Error("server non raggiungibile"));
+    ws.onmessage=ev=>onMsg(JSON.parse(ev.data));
   });
 }
-
-async function grabScreen(){
+async function grab(){
   return await navigator.mediaDevices.getDisplayMedia({
-    video:{ width:{ideal:1920}, height:{ideal:1080}, frameRate:{ideal:60} }, audio:false
-  });
+    video:{ width:{ideal:1920}, height:{ideal:1080}, frameRate:{ideal:60} }, audio:false });
 }
 
-/* ---------- PC DI GIOCO (host = riceve e compone) ---------- */
-async function hostGame(){
-  role = "host";
-  try{
-    setStatus('Seleziona lo schermo di QUESTO PC (quello sotto)...','warn');
-    localStream = await grabScreen();
-  }catch(e){ setStatus('Cattura annullata.','warn'); return; }
-  try{ await connectWS(); }catch(e){ setStatus('Errore: '+e.message,'warn'); return; }
-  ws.send(JSON.stringify({ t:"host" }));
+/* ---------------- avvii ---------------- */
+async function startMain(){
+  myRole="main";
+  try{ setStatus('Seleziona lo schermo di gioco...','warn'); localStream=await grab(); }
+  catch(e){ setStatus('Cattura annullata.','warn'); return; }
+  $('mainCard').classList.add('on'); $('ovCard').classList.remove('on');
+  const pre = new URLSearchParams(location.search).get("main")
+           || new URLSearchParams(location.search).get("room");
+  if(pre){ $('ovLink').value = pre; }
+  setStatus('Schermo pronto. Incolla il link dell\'overlay e premi Collega.');
+}
+async function mainConnect(){
+  const code = parseCode($('ovLink').value);
+  if(!code){ setStatus('Link/codice non valido.','warn'); return; }
+  roomCode=code;
+  try{ await wsConnect(); }catch(e){ setStatus('Errore: '+e.message,'warn'); return; }
+  ws.send(JSON.stringify({ t:"join", code, role:"main" }));
+  setStatus('Collegamento alla stanza...','warn');
 }
 
-/* ---------- PC OVERLAY (guest = cattura e invia) ---------- */
-function showJoin(){
-  role = "guest";
-  $('joinCard').classList.add('on');
-  $('hostCard').classList.remove('on');
-  const pre = new URLSearchParams(location.search).get("room");
-  if(pre) $('joinCode').value = pre.toUpperCase();
-  setStatus('Inserisci il codice e premi Entra.');
+async function startOverlay(){
+  myRole="overlay";
+  try{ setStatus('Seleziona lo schermo da inviare (overlay su nero)...','warn'); localStream=await grab(); }
+  catch(e){ setStatus('Cattura annullata.','warn'); return; }
+  try{ await wsConnect(); }catch(e){ setStatus('Errore: '+e.message,'warn'); return; }
+  ws.send(JSON.stringify({ t:"create", role:"overlay" }));
 }
 
-async function joinRoom(){
-  const code = $('joinCode').value.trim().toUpperCase();
-  if(code.length !== 4){ setStatus('Codice non valido.','warn'); return; }
-  role = "guest"; roomCode = code;
-  try{
-    setStatus('Seleziona lo schermo da inviare (overlay su nero)...','warn');
-    localStream = await grabScreen();
-  }catch(e){ setStatus('Cattura annullata.','warn'); return; }
-  try{ await connectWS(); }catch(e){ setStatus('Errore: '+e.message,'warn'); return; }
-  ws.send(JSON.stringify({ t:"join", code }));
+/* telefono / vista: URL con ?view=CODE */
+async function startPhone(code){
+  myRole="phone"; roomCode=code;
+  showStage();
+  setStatus('Collegamento...','warn');
+  try{ await wsConnect(); }catch(e){ setStatus('Errore: '+e.message,'warn'); return; }
+  ws.send(JSON.stringify({ t:"join", code, role:"phone" }));
 }
 
-/* ---------- gestione messaggi signaling ---------- */
-async function onSignal(m){
-  if(m.t === "hosted"){
-    roomCode = m.code;
-    $('roomCode').textContent = m.code;
-    const link = location.origin + location.pathname + "?room=" + m.code;
-    $('roomLink').value = link;
-    $('hostCard').classList.add('on');
-    setStatus('In attesa dell\'overlay... condividi il codice o il link.','warn');
-
-  } else if(m.t === "guest-here"){
-    // il PC overlay e' entrato: preparo la connessione (rispondero' alla sua offerta)
-    setupPeer();
-    setStatus('Overlay collegato, avvio fusione...','warn');
-
-  } else if(m.t === "joined"){
-    // io (overlay) sono entrato: creo l'offerta con il mio video
-    setupPeer();
-    localStream.getTracks().forEach(t=>pc.addTrack(t, localStream));
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    ws.send(JSON.stringify({ t:"sig", payload:{ sdp: pc.localDescription } }));
-    setStatus('Invio in corso...','warn');
-
-  } else if(m.t === "sig"){
-    const p = m.payload;
-    if(p.sdp){
-      await pc.setRemoteDescription(p.sdp);
-      if(p.sdp.type === "offer"){
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        ws.send(JSON.stringify({ t:"sig", payload:{ sdp: pc.localDescription } }));
-      }
-    } else if(p.ice){
-      try{ await pc.addIceCandidate(p.ice); }catch(e){}
+/* ---------------- signaling ---------------- */
+function onMsg(m){
+  if(m.t==="created" || m.t==="joined"){
+    myId=m.id; roomCode=m.code;
+    (m.peers||[]).forEach(p=>{ peers.set(p.id,p.role); handlePeer(p); });
+    if(myRole==="overlay"){
+      const link = location.origin+location.pathname+"?main="+roomCode;
+      $('ovShare').textContent=link; $('ovCard').classList.add('on'); $('mainCard').classList.remove('on');
+      setStatus('Link pronto: mandalo al PC principale.','ok');
+    } else if(myRole==="main"){
+      showStage(); setStatus('In stanza, avvio fusione...','ok');
+      $('phoneBtn').style.display="inline-block";
+    } else if(myRole==="phone"){
+      setStatus('In stanza, attendo i flussi...','ok');
     }
-
-  } else if(m.t === "peer-left"){
-    setStatus(role==="host" ? 'Overlay disconnesso.' : 'PC di gioco disconnesso.','warn');
-
-  } else if(m.t === "error"){
+  } else if(m.t==="peer-joined"){
+    peers.set(m.id,m.role); handlePeer({id:m.id,role:m.role});
+    if(myRole==="overlay" && m.role==="main") $('ovStatus2').textContent="PC principale collegato ✓";
+  } else if(m.t==="sig"){
+    onSig(m.from, m.payload);
+  } else if(m.t==="peer-left"){
+    const c=conns.get(m.id); if(c){ try{c.pc.close();}catch(e){} conns.delete(m.id); }
+    const r=peers.get(m.id); peers.delete(m.id);
+    if(r && streams[r]){ streams[r]=null; }
+  } else if(m.t==="error"){
     setStatus(m.msg,'warn');
   }
 }
 
-function setupPeer(){
-  pc = new RTCPeerConnection({ iceServers: ICE });
-  pc.onicecandidate = e => {
-    if(e.candidate) ws.send(JSON.stringify({ t:"sig", payload:{ ice: e.candidate } }));
+// inizio io la connessione verso 'peer' se sono un publisher di cui lui ha bisogno
+function handlePeer(peer){
+  if((NEEDS[peer.role]||[]).includes(myRole)) initiateTo(peer);
+}
+function newPC(peerId, peerRole){
+  const pc=new RTCPeerConnection({iceServers:ICE});
+  pc.onicecandidate=e=>{ if(e.candidate) sig(peerId,{ice:e.candidate}); };
+  pc.ontrack=e=>{ const s=e.streams[0]||new MediaStream([e.track]);
+    if(peerRole==="main"||peerRole==="overlay"){ streams[peerRole]=s; ensureDraw(); } };
+  pc.onconnectionstatechange=()=>{
+    if(pc.connectionState==="connected"){
+      if(myRole==="overlay") setStatus('Invio attivo','ok');
+      else setStatus('Fusione attiva','ok');
+    }
   };
-  pc.onconnectionstatechange = ()=>{
-    if(pc.connectionState==="connected")
-      setStatus(role==="host" ? 'Fusione attiva' : 'Invio attivo','ok');
-    if(pc.connectionState==="failed")
-      setStatus('Connessione fallita (rete/NAT).','warn');
-  };
-  if(role === "host"){
-    remoteStream = new MediaStream();
-    pc.ontrack = e => { remoteStream.addTrack(e.track); startStage(); };
+  conns.set(peerId,{pc,role:peerRole});
+  return pc;
+}
+async function initiateTo(peer){
+  const pc=newPC(peer.id, peer.role);
+  if(localStream) localStream.getTracks().forEach(t=>pc.addTrack(t, localStream));
+  const offer=await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  sig(peer.id,{sdp:pc.localDescription});
+}
+async function onSig(from, p){
+  let c=conns.get(from);
+  if(p.sdp){
+    if(p.sdp.type==="offer"){
+      const pc = c ? c.pc : newPC(from, peers.get(from));
+      await pc.setRemoteDescription(p.sdp);
+      const ans=await pc.createAnswer(); await pc.setLocalDescription(ans);
+      sig(from,{sdp:pc.localDescription});
+    } else if(c){ await c.pc.setRemoteDescription(p.sdp); }
+  } else if(p.ice && c){ try{ await c.pc.addIceCandidate(p.ice);}catch(e){} }
+}
+function sig(to,payload){ ws.send(JSON.stringify({t:"sig",to,payload})); }
+
+/* ---------------- compositing (blend Schermo) ---------------- */
+let drawing=false;
+const vids={};
+function videoFor(stream){
+  if(!vids[stream.id]){
+    const v=document.createElement('video');
+    v.srcObject=stream; v.muted=true; v.playsInline=true; v.play().catch(()=>{});
+    vids[stream.id]=v;
   }
+  return vids[stream.id];
+}
+function baseStream(){ return myRole==="main" ? localStream : streams.main; }
+function overlayStream(){ return streams.overlay; }
+
+function showStage(){
+  $('home').style.display='none'; $('stage').style.display='block'; $('bar').style.display='flex';
+  const b=$('badge'); b.style.display='block'; b.textContent='Stanza '+(roomCode||'');
+  setTimeout(()=>{ b.style.display='none'; }, 4000);
+}
+function ensureDraw(){ if(drawing) return; drawing=true; requestAnimationFrame(draw); }
+function draw(){
+  const cv=$('cv'), ctx=cv.getContext('2d');
+  ctx.globalCompositeOperation='source-over';
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,cv.width,cv.height);
+  const b=baseStream(); if(b){ const v=videoFor(b); if(v.videoWidth) ctx.drawImage(v,0,0,cv.width,cv.height); }
+  ctx.globalCompositeOperation='screen';
+  const o=overlayStream(); if(o){ const v=videoFor(o); if(v.videoWidth) ctx.drawImage(v,0,0,cv.width,cv.height); }
+  requestAnimationFrame(draw);
 }
 
-/* ---------- compositing (blend Schermo) ---------- */
-function startStage(){
-  const vLocal = document.createElement('video');
-  const vRemote = document.createElement('video');
-  vLocal.srcObject = localStream; vLocal.muted = true; vLocal.play();
-  vRemote.srcObject = remoteStream; vRemote.muted = true; vRemote.play();
-
-  $('setup').style.display = 'none';
-  $('stage').style.display = 'block';
-  $('bar').style.display = 'flex';
-  const badge = $('badge');
-  badge.style.display = 'block'; badge.textContent = 'Stanza ' + roomCode;
-  setTimeout(()=>{ badge.style.display='none'; }, 4000);
-
-  const cv = $('cv'), ctx = cv.getContext('2d');
-  function draw(){
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = '#000'; ctx.fillRect(0,0,cv.width,cv.height);
-    if(vLocal.videoWidth)  ctx.drawImage(vLocal, 0,0, cv.width, cv.height);
-    ctx.globalCompositeOperation = 'screen';           // i neri dell'overlay spariscono
-    if(vRemote.videoWidth) ctx.drawImage(vRemote, 0,0, cv.width, cv.height);
-    requestAnimationFrame(draw);
-  }
-  draw();
-}
-
-/* ---------- utility UI ---------- */
-function copyLink(){ const i=$('roomLink'); i.select();
-  navigator.clipboard.writeText(i.value); setStatus('Link copiato!','ok'); }
-function toggleFs(){ if(!document.fullscreenElement) $('stage').requestFullscreen();
-  else document.exitFullscreen(); }
+/* ---------------- UI vista ---------------- */
+function copyPhone(){ const link=location.origin+location.pathname+"?view="+roomCode;
+  navigator.clipboard.writeText(link); setStatus('Link telefono copiato: aprilo sul telefono!','ok'); }
+function toggleFs(){ if(!document.fullscreenElement) $('stage').requestFullscreen(); else document.exitFullscreen(); }
 document.addEventListener('keydown', e=>{
   if($('stage').style.display!=='block') return;
-  if(e.key==='Escape' && !document.fullscreenElement) location.reload();
   if(e.key==='f'||e.key==='F') toggleFs();
 });
 
-// se apro il link con ?room=CODE vado dritto alla modalita' overlay
-if(new URLSearchParams(location.search).get("room")) showJoin();
+// avvio in base all'URL
+(function(){
+  const q=new URLSearchParams(location.search);
+  if(q.get("view")) startPhone(q.get("view").toUpperCase());
+  else if(q.get("main")||q.get("room")) setStatus('Premi "SCHERMO PRINCIPALE" per collegarti all\'overlay.');
+})();
 </script>
 </body>
 </html>
