@@ -101,7 +101,10 @@ wss.on("connection", (ws) => {
     if (m.t === "ping") { send(ws, { t: "pong" }); return; }
 
     if (m.t === "create") {
-      let code; do { code = code4(); } while (rooms.has(code));
+      // se il client chiede un codice (riconnessione dell'host dopo un riavvio)
+      // e quel codice e' libero, glielo ridiamo: il link condiviso resta valido.
+      let code = (m.code || "").toUpperCase();
+      if (!/^[A-Z0-9]{4}$/.test(code) || rooms.has(code)) { do { code = code4(); } while (rooms.has(code)); }
       const room = new Map(); rooms.set(code, room);
       room.set(ws.id, { ws, role: m.role || "overlay" });
       ws.room = code; ws.role = m.role || "overlay";
@@ -142,5 +145,15 @@ const heartbeat = setInterval(() => {
   }
 }, 30000);
 wss.on("close", () => clearInterval(heartbeat));
+
+// Keep-awake: Render Free si addormenta dopo ~15 min senza traffico HTTP, e con
+// lui spariscono le stanze in memoria. Un self-ping ogni 10 min lo tiene sveglio
+// (RENDER_EXTERNAL_URL e' impostata da Render in automatico).
+const SELF_URL = process.env.RENDER_EXTERNAL_URL || process.env.SELF_URL;
+if (SELF_URL) {
+  const u = SELF_URL.replace(/\/+$/, "") + "/healthz";
+  const lib = u.startsWith("https") ? require("https") : require("http");
+  setInterval(() => { try { lib.get(u, r => r.resume()).on("error", () => {}); } catch {} }, 10 * 60 * 1000);
+}
 
 server.listen(PORT, () => console.log("ScreenFusion server su :" + PORT));

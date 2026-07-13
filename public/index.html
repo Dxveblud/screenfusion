@@ -373,14 +373,17 @@ function videoFor(stream){
 /* ---- connessione a una stanza (signaling + WebRTC) ---- */
 function RoomConn(opts){
   const self={ role:opts.role, code:opts.code, id:null, peers:new Map(), conns:new Map(),
-    ws:null, closed:false, appPing:null };
+    ws:null, closed:false, appPing:null, readyDone:false };
   const proto=location.protocol==="https:"?"wss":"ws";
+  let tries=0;
+  self.hasLive=()=>{ for(const[,c]of self.conns){ const st=c.pc.connectionState, ic=c.pc.iceConnectionState;
+    if(st==="connected"||ic==="connected"||ic==="completed") return true; } return false; };
 
   function open(){
     const ws=new WebSocket(proto+"://"+location.host); self.ws=ws;
     ws.onopen=()=>{
       opts.onSocket&&opts.onSocket(true);
-      ws.send(JSON.stringify(opts.create ? {t:"create",role:self.role} : {t:"join",code:self.code,role:self.role}));
+      ws.send(JSON.stringify(opts.create ? {t:"create",role:self.role,code:self.code||undefined} : {t:"join",code:self.code,role:self.role}));
       // ping applicativo: tiene vivo il socket (proxy/Render chiudono gli idle)
       clearInterval(self.appPing);
       self.appPing=setInterval(()=>{ if(ws.readyState===1) ws.send(JSON.stringify({t:"ping"})); }, 25000);
@@ -390,10 +393,15 @@ function RoomConn(opts){
       clearInterval(self.appPing);
       opts.onSocket&&opts.onSocket(false);
       if(self.closed) return;
-      // il "create" ricrea una stanza nuova (codice diverso): non riconnettere da solo,
-      // avvisa e basta. Il "join" invece puo' ritentare.
-      if(opts.create){ opts.onError&&opts.onError("Connessione al server persa. Ricarica per ripartire."); }
-      else { setTimeout(()=>{ if(!self.closed) open(); }, 1500); }
+      // Se il video P2P e' gia' attivo il signaling non serve: chi si e' unito
+      // (sub/phoneview) tiene la fusione e non riconnette. Chi ospita (overlay/
+      // fusionsrc) invece torna su per accogliere nuovi ingressi, riprendendosi
+      // lo STESSO codice: cosi' il link condiviso resta valido anche dopo un
+      // riavvio/deploy del server.
+      if(!opts.create && self.hasLive()){ opts.onNet&&opts.onNet('kept'); return; }
+      if(self.hasLive()) opts.onNet&&opts.onNet('reconnecting');
+      const delay=Math.min(1500*Math.pow(1.6,tries++),15000);
+      setTimeout(()=>{ if(!self.closed) open(); }, delay);
     };
     ws.onerror=()=>{ try{ws.close();}catch(e){} };
   }
@@ -438,11 +446,14 @@ function RoomConn(opts){
     } else if(p.ice&&c){ try{await c.pc.addIceCandidate(p.ice);}catch(e){} }
   }
   function handle(m){
-    if(m.t==="created"||m.t==="joined"){ self.id=m.id; self.code=m.code; (m.peers||[]).forEach(handlePeer); opts.onReady&&opts.onReady(self);
+    if(m.t==="created"||m.t==="joined"){ self.id=m.id; self.code=m.code; tries=0;
+      (m.peers||[]).forEach(handlePeer);
+      if(!self.readyDone){ self.readyDone=true; opts.onReady&&opts.onReady(self); }
+      else opts.onNet&&opts.onNet('ok');
     } else if(m.t==="peer-joined"){ handlePeer({id:m.id,role:m.role}); opts.onPeer&&opts.onPeer(m.role);
     } else if(m.t==="sig"){ onSig(m.from,m.payload);
     } else if(m.t==="peer-left"){ const c=self.conns.get(m.id); if(c){try{c.pc.close();}catch(e){}} self.conns.delete(m.id); self.peers.delete(m.id); opts.onPeerLeft&&opts.onPeerLeft(m.id);
-    } else if(m.t==="error"){ opts.onError&&opts.onError(m.msg); }
+    } else if(m.t==="error"){ if(self.hasLive()) return; opts.onError&&opts.onError(m.msg); }
   }
   self.close=()=>{ self.closed=true; clearInterval(self.appPing); try{self.ws&&self.ws.close();}catch(e){} for(const[,c]of self.conns){try{c.pc.close();}catch(e){}} };
   open();
@@ -474,6 +485,7 @@ async function startOverlay(){
       $('ovShare').textContent=link; $('ovCard').classList.add('on'); $('mainCard').classList.remove('on');
       setStatus('Overlay attivo. Manda il link (o il codice) a chi vuole l\'overlay.','ok'); toast('Overlay pronto ✓','ok'); },
     onPeer:r=>{ if(r==="sub"){ $('ovStatus2').textContent="Uno schermo si e' collegato ✓ (puoi averne piu' d'uno)"; toast('Uno schermo si è collegato','ok'); } },
+    onNet:s=>{ if(s==='reconnecting') toast('Riconnessione al server…','warn'); if(s==='ok') toast('Server riconnesso ✓ — il link è di nuovo valido','ok'); },
     onError:m=>{ setStatus(m,'err'); toast(m,'err'); } });
 }
 
@@ -501,6 +513,7 @@ function mainConnect(){
   // sorgente della fusione per i telefoni/altri schermi
   mainSrc=RoomConn({ role:"fusionsrc", create:true, getTracks:()=>fusionStream,
     onReady:c=>{ viewerCode=c.code; $('phoneBtn').style.display="inline-block"; },
+    onNet:s=>{ if(s==='reconnecting') toast('Riconnessione al server…','warn'); if(s==='ok') toast('Server riconnesso ✓','ok'); },
     onError:m=>toast(m,'err') });
   // ricezione dell'overlay
   mainSub=RoomConn({ role:"sub", code,
