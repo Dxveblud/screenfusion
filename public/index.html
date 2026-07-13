@@ -114,6 +114,15 @@
       <option value="maintain-framerate">Tieni FPS</option>
       <option value="maintain-resolution" selected>Tieni risoluzione</option>
     </select></div>
+  <div class="srow"><span>Fusione</span>
+    <select id="setBlend">
+      <option value="screen" selected>Schermo (neri via)</option>
+      <option value="lighten">Chiarisci</option>
+      <option value="lighter">Additivo</option>
+      <option value="multiply">Moltiplica (bianchi via)</option>
+      <option value="overlay">Sovrapposizione</option>
+      <option value="difference">Differenza</option>
+    </select></div>
 </div>
 
 <div id="home">
@@ -158,6 +167,7 @@
 </div>
 <div id="badge"></div>
 <div id="bar">
+  <button id="blendBtn" onclick="cycleBlend()" style="display:none">🎨 Fusione: Schermo</button>
   <button id="phoneBtn" onclick="copyPhone()" style="display:none">📱 Link telefono</button>
   <button onclick="toggleFs()">⛶ Schermo intero</button>
   <button onclick="location.href=location.origin+location.pathname">✕ Esci</button>
@@ -176,11 +186,14 @@ document.addEventListener('click', e=>{
 
 const ICE=[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}];
 const MAXBR=50_000_000;
-const SET={ w:1920, h:1080, fps:60, pref:"maintain-resolution" };
+const SET={ w:1920, h:1080, fps:60, pref:"maintain-resolution", blend:"screen" };
+const BLENDS=[["screen","Schermo"],["lighten","Chiarisci"],["lighter","Additivo"],
+  ["multiply","Moltiplica"],["overlay","Sovrapposizione"],["difference","Differenza"]];
 function readSettings(){
   const r=($('setRes')||{}).value; if(r){ const [w,h]=r.split("x").map(Number); SET.w=w; SET.h=h; }
   const f=($('setFps')||{}).value; if(f) SET.fps=Number(f);
   const p=($('setPref')||{}).value; if(p) SET.pref=p;
+  const b=($('setBlend')||{}).value; if(b) SET.blend=b;
 }
 async function tuneSenders(pc){
   for(const s of pc.getSenders()){
@@ -294,7 +307,7 @@ function startDrawMain(){
   (function loop(){
     ctx.globalCompositeOperation='source-over'; ctx.fillStyle='#000'; ctx.fillRect(0,0,cv.width,cv.height);
     if(gameStream){ const v=videoFor(gameStream); if(v.videoWidth) ctx.drawImage(v,0,0,cv.width,cv.height); }
-    ctx.globalCompositeOperation='screen';
+    ctx.globalCompositeOperation=SET.blend;
     if(overlayStream){ const v=videoFor(overlayStream); if(v.videoWidth) ctx.drawImage(v,0,0,cv.width,cv.height); }
     requestAnimationFrame(loop);
   })();
@@ -310,11 +323,20 @@ function showStage(which){
   $('stage').style.display='block'; $('bar').style.display='flex';
   $('cv').style.display = which==='cv'?'block':'none';
   $('fus').style.display= which==='fus'?'block':'none';
+  if(which==='cv'){ $('blendBtn').style.display="inline-block";
+    $('blendBtn').textContent="🎨 Fusione: "+blendLabel(SET.blend); }
   stopRain();
 }
 function badge(t){ const b=$('badge'); b.style.display='block'; b.textContent=t; setTimeout(()=>{ b.style.display='none'; }, 5000); }
 function copyPhone(){ const link=location.origin+location.pathname+"?view="+viewerCode;
   navigator.clipboard.writeText(link); badge('📱 Link telefono copiato!'); }
+function blendLabel(v){ const b=BLENDS.find(x=>x[0]===v); return b?b[1]:v; }
+function cycleBlend(){
+  const i=BLENDS.findIndex(x=>x[0]===SET.blend);
+  SET.blend=BLENDS[(i+1)%BLENDS.length][0];
+  const sel=$('setBlend'); if(sel) sel.value=SET.blend;
+  $('blendBtn').textContent="🎨 Fusione: "+blendLabel(SET.blend);
+}
 function toggleFs(){ if(!document.fullscreenElement) $('stage').requestFullscreen(); else document.exitFullscreen(); }
 document.addEventListener('keydown', e=>{ if($('stage').style.display!=='block') return; if(e.key==='f'||e.key==='F') toggleFs(); });
 
