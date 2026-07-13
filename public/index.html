@@ -251,6 +251,7 @@
   <button id="blendBtn" onclick="cycleBlend()" style="display:none">🎨 Fusione: Schermo</button>
   <button id="phoneBtn" onclick="copyPhone()" style="display:none">📱 Link telefono</button>
   <button id="hudBtn" onclick="toggleHud()">📊 Stats</button>
+  <button id="setBtn" onclick="toggleSettings(event)">⚙ Qualità</button>
   <button onclick="toggleFs()">⛶ Schermo intero</button>
   <button onclick="location.href=location.origin+location.pathname">✕ Esci</button>
 </div>
@@ -469,8 +470,31 @@ function parseCode(s){ s=(s||"").trim();
   const q=s.match(/[?&](?:room|main|overlay|view)=([A-Za-z0-9]{4})/); if(q) return q[1].toUpperCase();
   const m=s.match(/([A-Za-z0-9]{4})\s*$/); return m?m[1].toUpperCase():""; }
 
-let gameStream=null, overlayStream=null, fusionStream=null, viewerCode=null;
+let gameStream=null, overlayStream=null, fusionStream=null, viewerCode=null, localCap=null;
 let mainSub=null, mainSrc=null, ovConn=null, phoneConn=null;
+
+/* ---- applica le impostazioni A CALDO (anche a connessione avviata) ---- */
+async function applyCaptureConstraints(){
+  const t=localCap&&localCap.getVideoTracks&&localCap.getVideoTracks()[0];
+  if(!t) return;
+  try{ await t.applyConstraints({ width:{ideal:SET.w}, height:{ideal:SET.h}, frameRate:{ideal:SET.fps, max:SET.fps} }); }catch(e){}
+}
+function retuneAll(){
+  [ovConn,mainSrc,mainSub,phoneConn].forEach(c=>{ if(!c) return;
+    for(const[,cc]of c.conns){ tuneSenders(cc.pc); for(const r of cc.pc.getReceivers()) lowLatencyReceiver(r); }
+  });
+}
+let liveT=null;
+async function applyLive(){
+  readSettings();
+  if($('blendBtn')&&$('blendBtn').style.display!=='none') $('blendBtn').textContent="🎨 Fusione: "+blendLabel(SET.blend);
+  // la fusione e' grande quanto il canvas: ridimensionarlo cambia la risoluzione
+  // inviata ai telefoni senza ricollegare (il loop di disegno segue le nuove misure)
+  if(fusionStream){ const cv=$('cv'); if(cv.width!==SET.w||cv.height!==SET.h){ cv.width=SET.w; cv.height=SET.h; } }
+  await applyCaptureConstraints();
+  retuneAll();
+  if($('stage').style.display==='block'){ clearTimeout(liveT); liveT=setTimeout(()=>toast('Impostazioni applicate ✓','ok'),120); }
+}
 
 async function startOverlay(){
   readSettings();
@@ -478,6 +502,7 @@ async function startOverlay(){
   await loadIce();
   let s; try{ hideBoot(); setStatus('Seleziona lo schermo da inviare (overlay su nero)…','warn'); s=await grab(); }
   catch(e){ hideBoot(); setStatus('Cattura annullata.','warn'); return; }
+  localCap=s;
   s.getVideoTracks()[0].addEventListener('ended',()=>{ setStatus('Cattura interrotta.','warn'); toast('Condivisione schermo interrotta','warn'); });
   ovConn=RoomConn({ role:"overlay", create:true, getTracks:()=>s,
     onReady:c=>{ const link=location.origin+location.pathname+"?main="+c.code;
@@ -495,6 +520,7 @@ async function startMain(){
   await loadIce();
   try{ hideBoot(); setStatus('Seleziona lo schermo di gioco…','warn'); gameStream=await grab(); }
   catch(e){ hideBoot(); setStatus('Cattura annullata.','warn'); return; }
+  localCap=gameStream;
   gameStream.getVideoTracks()[0].addEventListener('ended',()=>{ toast('Cattura schermo di gioco interrotta','warn'); });
   $('mainCard').classList.add('on'); $('ovCard').classList.remove('on');
   const pre=new URLSearchParams(location.search).get("main")||new URLSearchParams(location.search).get("room");
@@ -648,6 +674,11 @@ function startRain(){
 function stopRain(){ if(rainTimer){ clearInterval(rainTimer); rainTimer=null; } $('rain').style.display='none'; }
 
 /* ---- avvio ---- */
+// cambiare una qualsiasi impostazione la applica subito (anche a sessione avviata)
+['setRes','setFps','setQual','setJit','setPref','setBlend'].forEach(id=>{
+  const el=$(id); if(el) el.addEventListener('change',applyLive);
+});
+
 (function(){ const q=new URLSearchParams(location.search);
   if(q.get("view")) startPhone(q.get("view").toUpperCase());
   else { startRain(); if(q.get("main")||q.get("room")){ setStatus('Premi "SCHERMO PRINCIPALE" per collegarti all\'overlay.'); toast('Link overlay rilevato — premi "Schermo principale"','ok'); } }
