@@ -98,6 +98,20 @@ function setStatus(t,c){ const s=$('status'); s.textContent=t; s.className='stat
 function copy(id){ navigator.clipboard.writeText($(id).textContent||$(id).value); setStatus('Copiato!','ok'); }
 
 const ICE=[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}];
+const MAXBR=20_000_000;   // tetto bitrate video (20 Mbps): niente sfocatura da compressione
+
+// forza alta qualita': bitrate alto + mantieni la risoluzione (semmai cala gli fps)
+async function tuneSenders(pc){
+  for(const s of pc.getSenders()){
+    if(!s.track || s.track.kind!=="video") continue;
+    const p=s.getParameters();
+    if(!p.encodings || !p.encodings.length) p.encodings=[{}];
+    p.encodings[0].maxBitrate=MAXBR;
+    p.encodings[0].maxFramerate=60;
+    p.degradationPreference="maintain-resolution";
+    try{ await s.setParameters(p); }catch(e){}
+  }
+}
 // chi ha bisogno del flusso di chi (il publisher inizia la connessione):
 //  sub (schermo principale) riceve dall'overlay
 //  phoneview (telefono) riceve la fusione gia' pronta dal fusionsrc (PC principale)
@@ -137,7 +151,9 @@ function RoomConn(opts){
     const pc=newPC(p.id,p.role);
     const st=opts.getTracks&&opts.getTracks();
     if(st) st.getTracks().forEach(t=>pc.addTrack(t,st));
-    const o=await pc.createOffer(); await pc.setLocalDescription(o); sig(p.id,{sdp:pc.localDescription});
+    const o=await pc.createOffer(); await pc.setLocalDescription(o);
+    tuneSenders(pc);
+    sig(p.id,{sdp:pc.localDescription});
   }
   function handlePeer(p){ self.peers.set(p.id,p.role);
     if((NEEDS[p.role]||[]).includes(self.role)) initiateTo(p); }
@@ -163,8 +179,11 @@ function RoomConn(opts){
 }
 
 async function grab(){
-  return await navigator.mediaDevices.getDisplayMedia({
+  const s=await navigator.mediaDevices.getDisplayMedia({
     video:{ width:{ideal:1920}, height:{ideal:1080}, frameRate:{ideal:60} }, audio:false });
+  const t=s.getVideoTracks()[0];
+  if(t) t.contentHint="detail";   // grafica nitida, non video sfumato
+  return s;
 }
 function parseCode(s){ s=(s||"").trim();
   const q=s.match(/[?&](?:room|main|overlay|view)=([A-Za-z0-9]{4})/); if(q) return q[1].toUpperCase();
@@ -202,6 +221,7 @@ function mainConnect(){
   showStage('cv');
   startDrawMain();
   fusionStream=$('cv').captureStream(60);
+  const ft=fusionStream.getVideoTracks()[0]; if(ft) ft.contentHint="detail";
 
   // stanza personale per i miei telefoni (trasmetto la fusione gia' pronta)
   RoomConn({ role:"fusionsrc", create:true, getTracks:()=>fusionStream,
