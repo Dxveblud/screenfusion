@@ -98,7 +98,7 @@ function setStatus(t,c){ const s=$('status'); s.textContent=t; s.className='stat
 function copy(id){ navigator.clipboard.writeText($(id).textContent||$(id).value); setStatus('Copiato!','ok'); }
 
 const ICE=[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}];
-const MAXBR=20_000_000;   // tetto bitrate video (20 Mbps): niente sfocatura da compressione
+const MAXBR=50_000_000;   // tetto bitrate video (50 Mbps): qualita' di fatto nativa a 1080p
 
 // forza alta qualita': bitrate alto + mantieni la risoluzione (semmai cala gli fps)
 async function tuneSenders(pc){
