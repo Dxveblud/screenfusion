@@ -196,6 +196,13 @@
       <option value="overlay">Sovrapposizione</option>
       <option value="difference">Differenza</option>
     </select></div>
+  <div class="srow"><span>Clip (replay)</span>
+    <select id="setClip">
+      <option value="0">Off</option>
+      <option value="1" selected>Ultimo 1 min</option>
+      <option value="2">Ultimi 2 min</option>
+      <option value="3">Ultimi 3 min</option>
+    </select></div>
 </div>
 
 <div id="home">
@@ -250,6 +257,9 @@
 <div id="bar">
   <button id="blendBtn" onclick="cycleBlend()" style="display:none">🎨 Fusione: Schermo</button>
   <button id="phoneBtn" onclick="copyPhone()" style="display:none">📱 Link telefono</button>
+  <span id="recDot" style="display:none;align-items:center;gap:6px;color:#ff6b6b;font-size:13px;padding:10px">
+    <span style="width:9px;height:9px;border-radius:50%;background:#ff6b6b;box-shadow:0 0 10px #ff6b6b;animation:pulse 1.2s ease-in-out infinite"></span>REC</span>
+  <button id="clipBtn" onclick="saveClip()" style="display:none">💾 Salva clip</button>
   <button id="hudBtn" onclick="toggleHud()">📊 Stats</button>
   <button id="setBtn" onclick="toggleSettings(event)">⚙ Qualità</button>
   <button onclick="toggleFs()">⛶ Schermo intero</button>
@@ -307,7 +317,7 @@ async function loadIce(){
   }catch(e){ /* si resta col fallback STUN */ }
 }
 
-const SET={ w:1920, h:1080, fps:60, pref:"maintain-framerate", blend:"screen", qual:"auto", jitter:120 };
+const SET={ w:1920, h:1080, fps:60, pref:"maintain-framerate", blend:"screen", qual:"auto", jitter:120, clipMin:1 };
 // hint di contenuto: "motion" = bassa latenza + priorita' ai 60fps (default);
 // "detail" solo in qualita' Massima, dove si preferisce la nitidezza del testo.
 function contentHint(){ return SET.qual==="max" ? "detail" : "motion"; }
@@ -320,6 +330,7 @@ function readSettings(){
   const b=($('setBlend')||{}).value; if(b) SET.blend=b;
   const q=($('setQual')||{}).value; if(q) SET.qual=q;
   const j=($('setJit')||{}).value; if(j!=null&&j!=="") SET.jitter=Number(j);
+  const cl=($('setClip')||{}).value; if(cl!=null&&cl!=="") SET.clipMin=Number(cl);
 }
 // riduce al minimo il jitter buffer del ricevitore: e' la latenza nascosta
 // piu' grossa in WebRTC. 0 = minima (ottima su ethernet/LAN).
@@ -506,6 +517,10 @@ async function applyLive(){
   if(fusionStream){ const cv=$('cv'); if(cv.width!==SET.w||cv.height!==SET.h){ cv.width=SET.w; cv.height=SET.h; } }
   await applyCaptureConstraints();
   retuneAll();
+  // clip: accendi/spegni il buffer secondo la scelta
+  if(SET.clipMin>0){ if(!recorder && recStream()){ startBuffer(); }
+    else if(recorder){ $('clipBtn').textContent='💾 Salva '+SET.clipMin+' min'; } }
+  else stopBuffer();
   if($('stage').style.display==='block'){ clearTimeout(liveT); liveT=setTimeout(()=>toast('Impostazioni applicate ✓','ok'),120); }
 }
 
@@ -564,6 +579,7 @@ function mainConnect(){
       else if(st==="disconnected"){ setConn('warn','Connessione instabile…'); } },
     onError:m=>{ setConn('err',m); toast(m,'err'); } });
   startStats(mainSub,'overlay');
+  startBuffer();
   badge('La tua fusione — stanza '+code);
 }
 
@@ -588,7 +604,7 @@ async function startPhone(code){
   await loadIce();
   phoneConn=RoomConn({ role:"phoneview", code,
     onSocket:up=>{ if(up) $('bootT').textContent="Server connesso, aspetto il video…"; },
-    onStream:(r,s)=>{ if(r==="fusionsrc"){ hideBoot(); const f=$('fus'); f.srcObject=s; f.play().catch(()=>{}); } },
+    onStream:(r,s)=>{ if(r==="fusionsrc"){ hideBoot(); const f=$('fus'); f.srcObject=s; f.play().catch(()=>{}); startBuffer(); } },
     onIce:(r,st)=>{ if(r!=="fusionsrc")return;
       if(st==="connected"||st==="completed"){ hideBoot(); setConn('ok','Collegato'); }
       else if(st==="failed"){ setConn('err','Connessione fallita — riprovo…'); }
@@ -639,6 +655,55 @@ async function pollStats(){
   }catch(e){}
 }
 
+/* ---- CLIP: buffer di registrazione a scorrimento (instant replay) ---- */
+let recorder=null, recChunks=[], recHeader=null;
+const REC_SLICE=1000; // ms per chunk
+function recStream(){
+  if(fusionStream) return fusionStream;               // PC di gioco: registra la fusione
+  const f=$('fus'); if(f&&f.srcObject) return f.srcObject; // telefono: registra il feed ricevuto
+  return null;
+}
+function startBuffer(){
+  if(recorder||SET.clipMin<=0) return;
+  const st=recStream(); if(!st) return;
+  let mime='video/webm;codecs=vp9';
+  if(!(window.MediaRecorder&&MediaRecorder.isTypeSupported)) return;
+  if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm;codecs=vp8';
+  if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm';
+  try{ recorder=new MediaRecorder(st,{mimeType:mime, videoBitsPerSecond:8_000_000}); }catch(e){ return; }
+  recChunks=[]; recHeader=null;
+  recorder.ondataavailable=e=>{
+    if(!e.data||!e.data.size) return;
+    if(!recHeader) recHeader=e.data;                  // 1° chunk = header/init
+    recChunks.push({t:performance.now(), blob:e.data});
+    const cutoff=performance.now()-(SET.clipMin*60000+2000);
+    while(recChunks.length>1 && recChunks[0].t<cutoff) recChunks.shift();
+  };
+  try{ recorder.start(REC_SLICE); }catch(e){ recorder=null; return; }
+  $('recDot').style.display='inline-flex';
+  $('clipBtn').style.display='inline-block';
+  $('clipBtn').textContent='💾 Salva '+SET.clipMin+' min';
+}
+function stopBuffer(){
+  if(recorder){ try{recorder.stop();}catch(e){} recorder=null; }
+  recChunks=[]; recHeader=null;
+  $('recDot').style.display='none'; $('clipBtn').style.display='none';
+}
+function saveClip(){
+  if(!recorder||!recChunks.length){ toast('Ancora niente da salvare','warn'); return; }
+  const parts=[];
+  if(recHeader && recChunks[0].blob!==recHeader) parts.push(recHeader); // header sempre in testa
+  for(const c of recChunks) parts.push(c.blob);
+  const blob=new Blob(parts,{type:'video/webm'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const ts=new Date().toISOString().replace(/[:T]/g,'-').replace(/\..+/,'');
+  a.href=url; a.download='clip-'+ts+'.webm';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 5000);
+  toast('Clip salvata ✓ ('+SET.clipMin+' min)','ok');
+}
+
 function showStage(which){
   $('home').style.display='none'; $('gear').style.display='none'; $('spanel').classList.remove('on');
   $('stage').style.display='block'; $('bar').style.display='flex';
@@ -662,6 +727,7 @@ function toggleFs(){ if(!document.fullscreenElement) $('stage').requestFullscree
 document.addEventListener('keydown', e=>{ if($('stage').style.display!=='block') return;
   if(e.key==='f'||e.key==='F') toggleFs();
   if(e.key==='s'||e.key==='S') toggleHud();
+  if(e.key==='c'||e.key==='C'){ if($('clipBtn').style.display!=='none') saveClip(); }
   if(e.key==='b'||e.key==='B'){ if($('blendBtn').style.display!=='none') cycleBlend(); }
 });
 
