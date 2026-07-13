@@ -555,7 +555,9 @@ function mainConnect(){
 }
 
 function startDrawMain(){
-  const cv=$('cv'), ctx=cv.getContext('2d',{alpha:false, desynchronized:true});
+  // NB: niente "desynchronized" -> su molte GPU fa sfarfallare (l'overlay
+  // sembra accendersi/spegnersi). Meglio la composizione sincronizzata normale.
+  const cv=$('cv'), ctx=cv.getContext('2d',{alpha:false});
   (function loop(){
     ctx.globalCompositeOperation='source-over'; ctx.fillStyle='#000'; ctx.fillRect(0,0,cv.width,cv.height);
     if(gameStream){ const v=videoFor(gameStream); if(v.videoWidth) ctx.drawImage(v,0,0,cv.width,cv.height); }
