@@ -670,7 +670,10 @@ function startBuffer(){
   if(!(window.MediaRecorder&&MediaRecorder.isTypeSupported)) return;
   if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm;codecs=vp8';
   if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm';
-  try{ recorder=new MediaRecorder(st,{mimeType:mime, videoBitsPerSecond:8_000_000}); }catch(e){ return; }
+  // bitrate della registrazione locale legato a risoluzione*fps -> nitido a 1080p.
+  // e' in RAM, quindi cappo per non esagerare col consumo.
+  const recBr=Math.min(Math.max(Math.round(SET.w*SET.h*SET.fps*0.11), 6_000_000), 16_000_000);
+  try{ recorder=new MediaRecorder(st,{mimeType:mime, videoBitsPerSecond:recBr}); }catch(e){ return; }
   recChunks=[]; recHeader=null;
   recorder.ondataavailable=e=>{
     if(!e.data||!e.data.size) return;
