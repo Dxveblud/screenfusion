@@ -15,10 +15,50 @@ const { WebSocketServer } = require("ws");
 const PORT = process.env.PORT || 3000;
 const PUBLIC = path.join(__dirname, "public");
 const MIME = { ".html":"text/html; charset=utf-8", ".js":"text/javascript; charset=utf-8",
-  ".css":"text/css; charset=utf-8", ".ico":"image/x-icon" };
+  ".css":"text/css; charset=utf-8", ".ico":"image/x-icon", ".png":"image/png",
+  ".svg":"image/svg+xml", ".json":"application/json; charset=utf-8" };
+
+// ---- Configurazione ICE (STUN + TURN) ---------------------------------------
+// STUN da solo basta quando i due router permettono la connessione diretta.
+// Su 4G/5G, NAT simmetrico, reti aziendali/universitarie serve un TURN che fa
+// da relay. Di default usiamo i TURN pubblici gratuiti di OpenRelay (Metered).
+// Se imposti le env TURN_URLS / TURN_USERNAME / TURN_CREDENTIAL su Render, quelli
+// hanno la precedenza (piu' affidabili di un servizio pubblico condiviso).
+function iceServers() {
+  const stun = [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun.cloudflare.com:3478" },
+  ];
+  if (process.env.TURN_URLS) {
+    const urls = process.env.TURN_URLS.split(",").map(s => s.trim()).filter(Boolean);
+    return [...stun, {
+      urls,
+      username: process.env.TURN_USERNAME || "",
+      credential: process.env.TURN_CREDENTIAL || "",
+    }];
+  }
+  // Fallback pubblico gratuito (OpenRelay). Puo' avere limiti/lentezza: per uso
+  // serio metti un tuo TURN via env. TCP 443 aiuta dietro firewall aggressivi.
+  const cred = { username: "openrelayproject", credential: "openrelayproject" };
+  return [
+    ...stun,
+    { urls: "turn:openrelay.metered.ca:80", ...cred },
+    { urls: "turn:openrelay.metered.ca:443", ...cred },
+    { urls: "turn:openrelay.metered.ca:443?transport=tcp", ...cred },
+  ];
+}
 
 const server = http.createServer((req, res) => {
   let url = decodeURIComponent(req.url.split("?")[0]);
+
+  if (url === "/healthz") { res.writeHead(200, { "Content-Type": "text/plain" }); res.end("ok"); return; }
+  if (url === "/ice") {
+    res.writeHead(200, { "Content-Type": MIME[".json"], "Cache-Control": "no-store" });
+    res.end(JSON.stringify({ iceServers: iceServers() }));
+    return;
+  }
+
   if (url === "/") url = "/index.html";
   const file = path.join(PUBLIC, path.normalize(url).replace(/^(\.\.[/\\])+/, ""));
   fs.readFile(file, (err, data) => {
@@ -52,10 +92,13 @@ function peerList(room, exceptId) {
 }
 
 wss.on("connection", (ws) => {
-  ws.id = nextId++; ws.room = null; ws.role = null;
+  ws.id = nextId++; ws.room = null; ws.role = null; ws.isAlive = true;
+  ws.on("pong", () => { ws.isAlive = true; });
 
   ws.on("message", (raw) => {
     let m; try { m = JSON.parse(raw); } catch { return; }
+
+    if (m.t === "ping") { send(ws, { t: "pong" }); return; }
 
     if (m.t === "create") {
       let code; do { code = code4(); } while (rooms.has(code));
@@ -88,5 +131,16 @@ wss.on("connection", (ws) => {
     if (room.size === 0) rooms.delete(ws.room);
   });
 });
+
+// Keepalive: elimina le connessioni morte (Render/proxy chiudono i socket idle)
+// e tiene vive quelle buone. Ogni 30s.
+const heartbeat = setInterval(() => {
+  for (const ws of wss.clients) {
+    if (ws.isAlive === false) { try { ws.terminate(); } catch {} continue; }
+    ws.isAlive = false;
+    try { ws.ping(); } catch {}
+  }
+}, 30000);
+wss.on("close", () => clearInterval(heartbeat));
 
 server.listen(PORT, () => console.log("ScreenFusion server su :" + PORT));

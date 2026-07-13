@@ -2,89 +2,149 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Matrix Screen Sharing</title>
 <link rel="icon" href="logo.png">
 <style>
   :root{
-    --bg:#0a0c10; --bg2:#0f1320; --card:#161b26; --line:#232a38; --text:#e9f0ea; --muted:#7f8a99;
-    --acc:#1fe07a; --acc-h:#3bf291; --main:#3b82f6; --main-h:#5a96ff;
-    --ok:#57dc82; --warn:#ffbe46;
+    --bg:#070a0e; --bg2:#0f1320; --card:#131926cc; --line:#232a38; --text:#e9f0ea; --muted:#8b97a6;
+    --acc:#1fe07a; --acc-h:#3bf291; --acc-dim:#12b866; --main:#3b82f6; --main-h:#5a96ff;
+    --ok:#57dc82; --warn:#ffbe46; --err:#ff6b6b;
+    --glass:blur(14px) saturate(1.2);
   }
-  *{box-sizing:border-box;font-family:"Segoe UI",system-ui,sans-serif}
-  body{margin:0;background:radial-gradient(1200px 600px at 50% -10%, #12261c 0%, var(--bg) 55%);
-    color:var(--text);min-height:100vh;overflow-x:hidden}
-  #rain{position:fixed;inset:0;z-index:0;opacity:.13;pointer-events:none}
-  #home{position:relative;z-index:1;max-width:600px;margin:0 auto;padding:22px}
+  *{box-sizing:border-box;font-family:"Segoe UI",system-ui,-apple-system,sans-serif}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;
+    -webkit-tap-highlight-color:transparent}
+  /* sfondo animato a strati */
+  #rain{position:fixed;inset:0;z-index:0;opacity:.12;pointer-events:none}
+  #glow{position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(900px 500px at 50% -12%, #123f2a55 0%, transparent 60%),
+      radial-gradient(700px 700px at 110% 10%, #0e2a4a44 0%, transparent 55%),
+      radial-gradient(600px 600px at -10% 90%, #12261c55 0%, transparent 55%);
+    animation:breathe 12s ease-in-out infinite}
+  @keyframes breathe{0%,100%{opacity:.85}50%{opacity:1}}
 
-  header{display:flex;align-items:center;gap:14px;margin:14px 4px 6px;
+  #home{position:relative;z-index:1;max-width:620px;margin:0 auto;padding:22px 22px 40px}
+
+  header{display:flex;align-items:center;gap:14px;margin:22px 4px 6px;
     animation:drop .6s cubic-bezier(.2,.9,.2,1)}
-  header .logo{width:56px;height:56px;border-radius:14px;
-    box-shadow:0 0 0 1px #ffffff10,0 8px 30px #0008;
-    filter:drop-shadow(0 0 12px #1fe07a44)}
-  header .brand{font-size:24px;font-weight:800;letter-spacing:.3px}
-  header .brand span{color:var(--acc)}
-  .tag{color:var(--muted);font-size:14px;margin:0 4px 22px;animation:fade .8s .1s both}
+  header .logo{width:58px;height:58px;border-radius:15px;
+    box-shadow:0 0 0 1px #ffffff12,0 8px 30px #0009;
+    filter:drop-shadow(0 0 14px #1fe07a55)}
+  header .brand{font-size:25px;font-weight:800;letter-spacing:.3px;line-height:1.05}
+  header .brand span{color:var(--acc);text-shadow:0 0 22px #1fe07a66}
+  .tag{color:var(--muted);font-size:14.5px;margin:2px 4px 24px;line-height:1.5;animation:fade .8s .1s both}
 
   .btn{position:relative;border:0;border-radius:16px;color:#fff;font-size:18px;font-weight:700;
-    width:100%;padding:18px;cursor:pointer;margin:10px 0;overflow:hidden;
-    transition:transform .12s ease, box-shadow .2s;animation:fade .5s both}
-  .btn small{display:block;font-weight:400;font-size:13px;opacity:.92;margin-top:4px}
+    width:100%;padding:19px;cursor:pointer;margin:11px 0;overflow:hidden;text-align:left;
+    display:flex;align-items:center;gap:14px;
+    transition:transform .12s ease, box-shadow .25s;animation:fade .5s both}
+  .btn .ico{font-size:26px;line-height:1;flex:0 0 auto;filter:drop-shadow(0 2px 6px #0006)}
+  .btn .txt{display:block}
+  .btn small{display:block;font-weight:400;font-size:13px;opacity:.92;margin-top:3px}
   .btn:hover{transform:translateY(-2px)}
-  .btn:active{transform:translateY(0)}
+  .btn:active{transform:translateY(0) scale(.995)}
+  .btn::after{content:"";position:absolute;inset:0;background:radial-gradient(300px 90px at var(--mx,50%) 0,#ffffff22,transparent 70%);opacity:0;transition:opacity .3s}
+  .btn:hover::after{opacity:1}
   .bMain{background:linear-gradient(135deg,#3b82f6,#6366f1);box-shadow:0 10px 30px #3b82f640}
-  .bMain:hover{box-shadow:0 14px 38px #3b82f666}
+  .bMain:hover{box-shadow:0 16px 42px #3b82f666}
   .bOv{background:linear-gradient(135deg,#12b866,#1fe07a);color:#04120a;box-shadow:0 10px 30px #1fe07a44}
-  .bOv:hover{box-shadow:0 14px 40px #1fe07a66}
-  .or{text-align:center;color:var(--muted);margin:10px 0;font-size:14px;position:relative}
+  .bOv:hover{box-shadow:0 16px 44px #1fe07a66}
+  .or{text-align:center;color:var(--muted);margin:14px 0 6px;font-size:13px;position:relative;
+    text-transform:uppercase;letter-spacing:2px}
+  .or::before,.or::after{content:"";position:absolute;top:50%;width:38%;height:1px;
+    background:linear-gradient(90deg,transparent,var(--line))}
+  .or::before{left:0;transform:scaleX(-1)} .or::after{right:0}
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
-    padding:16px;margin-top:14px;display:none;animation:fade .3s both}
+    padding:16px;margin-top:12px;display:none;animation:fade .3s both;backdrop-filter:var(--glass)}
   .card.on{display:block}
-  label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+  label{font-size:13px;color:var(--muted);display:block;margin-bottom:7px}
   .rowf{display:flex;gap:8px}
-  input{flex:1;background:#0e131c;color:var(--text);border:1px solid var(--line);
-    border-radius:10px;padding:12px;font-size:15px}
-  input:focus{outline:none;border-color:var(--acc)}
-  .ghost{background:#232a38;color:#fff;border:0;border-radius:10px;font-size:14px;
-    padding:12px 16px;cursor:pointer;transition:background .15s}
-  .ghost:hover{background:#333c4e}
-  .linkbox{font-family:monospace;font-size:13px;word-break:break-all;
-    background:#0e131c;border:1px solid var(--line);border-radius:10px;padding:12px;margin:8px 0}
+  input{flex:1;background:#0b1119;color:var(--text);border:1px solid var(--line);
+    border-radius:10px;padding:12px;font-size:15px;min-width:0}
+  input:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3px #1fe07a22}
+  .ghost{background:#232a38;color:#fff;border:0;border-radius:10px;font-size:14px;font-weight:600;
+    padding:12px 16px;cursor:pointer;transition:background .15s, transform .1s;white-space:nowrap}
+  .ghost:hover{background:#333c4e} .ghost:active{transform:scale(.97)}
+  .linkbox{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;word-break:break-all;
+    background:#0b1119;border:1px solid var(--line);border-radius:10px;padding:12px;margin:8px 0}
+  .codebig{font-family:ui-monospace,monospace;font-size:34px;font-weight:800;letter-spacing:8px;
+    text-align:center;color:var(--acc);text-shadow:0 0 22px #1fe07a55;margin:4px 0 10px}
   .mini{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.6}
-  .status{margin-top:22px;font-size:15px;color:var(--muted);min-height:22px;transition:color .2s}
-  .status.ok{color:var(--ok)} .status.warn{color:var(--warn)}
+  .status{margin-top:22px;font-size:15px;color:var(--muted);min-height:22px;transition:color .2s;
+    display:flex;align-items:center;gap:9px}
+  .status.ok{color:var(--ok)} .status.warn{color:var(--warn)} .status.err{color:var(--err)}
+  .dot{width:9px;height:9px;border-radius:50%;background:currentColor;box-shadow:0 0 10px currentColor;
+    flex:0 0 auto}
+  .status .dot{animation:pulse 1.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
 
-  /* ingranaggio + pannello impostazioni stile YouTube */
+  /* ingranaggio + pannello impostazioni */
   .gear{position:fixed;top:16px;right:16px;z-index:30;width:44px;height:44px;border-radius:50%;
-    background:#161b26cc;backdrop-filter:blur(6px);border:1px solid var(--line);color:#cfd8e3;
-    font-size:20px;cursor:pointer;transition:transform .3s, background .2s;display:flex;
+    background:#131926cc;backdrop-filter:var(--glass);border:1px solid var(--line);color:#cfd8e3;
+    font-size:20px;cursor:pointer;transition:transform .35s, background .2s;display:flex;
     align-items:center;justify-content:center}
-  .gear:hover{background:#1d2432;transform:rotate(60deg)}
-  .spanel{position:fixed;top:68px;right:16px;z-index:30;width:290px;background:#141a26;
-    border:1px solid var(--line);border-radius:14px;padding:8px;
-    box-shadow:0 20px 50px #000a;transform:translateY(-10px) scale(.96);opacity:0;
-    pointer-events:none;transition:.18s ease}
+  .gear:hover{background:#1d2432;transform:rotate(90deg)}
+  .spanel{position:fixed;top:68px;right:16px;z-index:30;width:300px;max-width:calc(100vw - 32px);
+    background:#101623ee;border:1px solid var(--line);border-radius:14px;padding:8px;
+    box-shadow:0 20px 50px #000b;backdrop-filter:var(--glass);transform:translateY(-10px) scale(.96);
+    opacity:0;pointer-events:none;transition:.18s ease}
   .spanel.on{transform:none;opacity:1;pointer-events:auto}
-  .spanel h3{margin:6px 10px 10px;font-size:13px;color:var(--muted);font-weight:600;
-    text-transform:uppercase;letter-spacing:.5px}
+  .spanel h3{margin:8px 10px 6px;font-size:12px;color:var(--muted);font-weight:700;
+    text-transform:uppercase;letter-spacing:.6px}
   .srow{display:flex;justify-content:space-between;align-items:center;gap:10px;
     padding:10px;border-radius:10px}
   .srow:hover{background:#1b2230}
   .srow span{font-size:14px}
-  select{background:#0e131c;color:var(--text);border:1px solid var(--line);
+  select{background:#0b1119;color:var(--text);border:1px solid var(--line);
     border-radius:9px;padding:8px 10px;font-size:14px;cursor:pointer}
   select:focus{outline:none;border-color:var(--acc)}
 
+  /* stage fusione / vista */
   #stage{position:fixed;inset:0;background:#000;display:none;z-index:20}
   #cv,#fus{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:none}
   #bar{position:fixed;left:0;right:0;bottom:0;display:none;z-index:21;
-    justify-content:center;gap:10px;padding:12px;background:linear-gradient(transparent,#000b)}
+    justify-content:center;flex-wrap:wrap;gap:10px;padding:12px calc(12px + env(safe-area-inset-right,0)) calc(12px + env(safe-area-inset-bottom,0));
+    background:linear-gradient(transparent,#000c)}
   #bar button{padding:10px 18px;font-size:14px;background:#ffffff14;color:#fff;border:0;
-    border-radius:10px;cursor:pointer;transition:background .15s}
-  #bar button:hover{background:#ffffff2b}
-  #badge{position:fixed;top:14px;left:14px;z-index:21;background:#000a;color:#fff;
-    padding:8px 13px;border-radius:10px;font-size:13px;display:none;max-width:90vw}
+    border-radius:10px;cursor:pointer;transition:background .15s,transform .1s;backdrop-filter:blur(6px)}
+  #bar button:hover{background:#ffffff2b} #bar button:active{transform:scale(.96)}
+
+  /* pill di stato connessione sullo stage */
+  #connpill{position:fixed;top:calc(14px + env(safe-area-inset-top,0));left:14px;z-index:22;
+    display:none;align-items:center;gap:8px;background:#000a;backdrop-filter:blur(8px);
+    border:1px solid #ffffff1a;color:#fff;padding:8px 13px;border-radius:999px;font-size:13px;font-weight:600}
+  #connpill .dot{width:9px;height:9px}
+  #badge{position:fixed;top:calc(14px + env(safe-area-inset-top,0));left:50%;transform:translateX(-50%);
+    z-index:23;background:#000c;backdrop-filter:blur(8px);color:#fff;padding:8px 14px;border-radius:12px;
+    font-size:13px;display:none;max-width:90vw;text-align:center}
+
+  /* HUD statistiche */
+  #hud{position:fixed;top:calc(14px + env(safe-area-inset-top,0));right:14px;z-index:22;display:none;
+    background:#000a;backdrop-filter:blur(8px);border:1px solid #ffffff14;border-radius:12px;
+    padding:10px 12px;font:12px/1.7 ui-monospace,Consolas,monospace;color:#cfe8d8;min-width:150px}
+  #hud b{color:#fff;font-weight:600}
+  #hud .relay{color:var(--warn)} #hud .direct{color:var(--acc)}
+
+  /* overlay di collegamento / risveglio server */
+  #boot{position:fixed;inset:0;z-index:40;display:none;flex-direction:column;align-items:center;
+    justify-content:center;gap:16px;background:#070a0ee6;backdrop-filter:blur(4px);text-align:center;padding:24px}
+  #boot .spin{width:52px;height:52px;border-radius:50%;border:3px solid #1fe07a22;
+    border-top-color:var(--acc);animation:spin .9s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #boot .bt{font-size:16px;font-weight:600} #boot .bs{font-size:13px;color:var(--muted);max-width:340px}
+
+  /* toast */
+  #toasts{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:60;
+    display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+  .toast{background:#131926ee;border:1px solid var(--line);backdrop-filter:var(--glass);
+    color:var(--text);padding:11px 16px;border-radius:12px;font-size:14px;box-shadow:0 12px 30px #000a;
+    animation:toastin .25s ease both;max-width:88vw}
+  .toast.ok{border-color:#1fe07a55} .toast.err{border-color:#ff6b6b55} .toast.warn{border-color:#ffbe4655}
+  @keyframes toastin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 
   @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
   @keyframes drop{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}
@@ -92,6 +152,7 @@
 </head>
 <body>
 <canvas id="rain"></canvas>
+<div id="glow"></div>
 
 <button class="gear" id="gear" onclick="toggleSettings(event)" title="Qualita'">&#9881;</button>
 <div class="spanel" id="spanel">
@@ -108,6 +169,12 @@
       <option value="120">120</option>
       <option value="60" selected>60</option>
       <option value="30">30</option>
+    </select></div>
+  <div class="srow"><span>Qualita' video</span>
+    <select id="setQual">
+      <option value="auto" selected>Auto (consigliato)</option>
+      <option value="high">Alta (piu' banda)</option>
+      <option value="max">Massima (LAN/fibra)</option>
     </select></div>
   <div class="srow"><span>Se la banda cala</span>
     <select id="setPref">
@@ -128,18 +195,19 @@
 <div id="home">
   <header>
     <img class="logo" src="logo.png" alt="Matrix">
-    <div class="brand">Matrix <span>Screen Sharing</span></div>
+    <div class="brand">Matrix <span>Screen&nbsp;Sharing</span></div>
   </header>
-  <div class="tag">Sovrapponi due schermi in blend "Schermo" &mdash; guarda la fusione anche dal telefono</div>
+  <div class="tag">Sovrapponi due schermi in blend &ldquo;Schermo&rdquo; &mdash; peer-to-peer, senza installare nulla. Guarda la fusione anche dal telefono.</div>
 
   <button class="btn bMain" onclick="startMain()">
-    SCHERMO PRINCIPALE (gioco)
-    <small>usa questo schermo, ricevi l'overlay e mostra la fusione</small>
+    <span class="ico">🎮</span>
+    <span class="txt">SCHERMO PRINCIPALE (gioco)
+      <small>usa questo schermo, ricevi l'overlay e mostra la fusione</small></span>
   </button>
   <div class="card" id="mainCard">
-    <label>Incolla qui il link dell'overlay, poi Collega</label>
+    <label>Incolla qui il link (o codice) dell'overlay, poi Collega</label>
     <div class="rowf">
-      <input id="ovLink" placeholder="link o codice dell'overlay...">
+      <input id="ovLink" placeholder="link o codice dell'overlay..." autocomplete="off">
       <button class="ghost" onclick="mainConnect()">Collega</button>
     </div>
     <div class="mini">Piu' persone possono usare lo stesso link: ognuno avra' la SUA fusione.</div>
@@ -148,45 +216,91 @@
   <div class="or">oppure</div>
 
   <button class="btn bOv" onclick="startOverlay()">
-    CREA OVERLAY E INVIA IL LINK
-    <small>invia il tuo schermo (overlay su nero) a tutti</small>
+    <span class="ico">🟢</span>
+    <span class="txt">CREA OVERLAY E INVIA IL LINK
+      <small>invia il tuo schermo (overlay su nero) a tutti</small></span>
   </button>
   <div class="card" id="ovCard">
-    <label>Link da mandare a chi vuole l'overlay:</label>
+    <label>Codice stanza &mdash; oppure manda il link qui sotto</label>
+    <div class="codebig" id="ovCode">····</div>
     <div class="linkbox" id="ovShare">...</div>
-    <button class="ghost" style="width:100%" onclick="copy('ovShare')">Copia link</button>
+    <div class="rowf">
+      <button class="ghost" style="flex:1" onclick="copy('ovShare')">📋 Copia link</button>
+      <button class="ghost" style="flex:1" onclick="shareLink()">↗ Condividi</button>
+    </div>
     <div class="mini" id="ovStatus2">Chiunque apra questo link avra' il tuo overlay sul suo schermo.</div>
   </div>
 
-  <div class="status" id="status">Pronto.</div>
+  <div class="status" id="status"><span class="dot"></span><span id="statusT">Pronto.</span></div>
 </div>
 
 <div id="stage">
   <canvas id="cv" width="1920" height="1080"></canvas>
   <video id="fus" muted playsinline></video>
 </div>
+<div id="connpill"><span class="dot"></span><span id="connT">Collegamento…</span></div>
+<div id="hud"></div>
 <div id="badge"></div>
 <div id="bar">
   <button id="blendBtn" onclick="cycleBlend()" style="display:none">🎨 Fusione: Schermo</button>
   <button id="phoneBtn" onclick="copyPhone()" style="display:none">📱 Link telefono</button>
+  <button id="hudBtn" onclick="toggleHud()">📊 Stats</button>
   <button onclick="toggleFs()">⛶ Schermo intero</button>
   <button onclick="location.href=location.origin+location.pathname">✕ Esci</button>
 </div>
 
+<div id="boot">
+  <div class="spin"></div>
+  <div class="bt" id="bootT">Collegamento al server…</div>
+  <div class="bs" id="bootS">Un attimo.</div>
+</div>
+
+<div id="toasts"></div>
+
 <script>
 const $ = id => document.getElementById(id);
-function setStatus(t,c){ const s=$('status'); s.textContent=t; s.className='status'+(c?' '+c:''); }
-function copy(id){ navigator.clipboard.writeText($(id).textContent||$(id).value); setStatus('Copiato!','ok'); }
+function setStatus(t,c){ $('statusT').textContent=t; $('status').className='status'+(c?' '+c:''); }
+function copy(id){ const el=$(id); navigator.clipboard.writeText(el.textContent||el.value).then(()=>toast('Copiato!','ok')); }
+
+/* ---- toast ---- */
+function toast(msg,kind){
+  const t=document.createElement('div'); t.className='toast'+(kind?' '+kind:''); t.textContent=msg;
+  $('toasts').appendChild(t);
+  setTimeout(()=>{ t.style.transition='opacity .3s'; t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, 2600);
+}
+async function shareLink(){
+  const link=$('ovShare').textContent;
+  if(navigator.share){ try{ await navigator.share({title:'Matrix Screen Sharing', text:'Apri il mio overlay:', url:link}); return; }catch(e){} }
+  copy('ovShare');
+}
+
+/* ---- boot / risveglio server ---- */
+let bootTimer=null;
+function showBoot(title,sub){ $('bootT').textContent=title; $('bootS').textContent=sub||''; $('boot').style.display='flex'; }
+function hideBoot(){ $('boot').style.display='none'; if(bootTimer){clearTimeout(bootTimer);bootTimer=null;} }
 
 /* ---- ingranaggio impostazioni ---- */
 function toggleSettings(e){ if(e) e.stopPropagation(); $('spanel').classList.toggle('on'); }
 document.addEventListener('click', e=>{
   if(!$('spanel').contains(e.target) && e.target!==$('gear')) $('spanel').classList.remove('on');
 });
+document.querySelectorAll('.btn').forEach(b=>b.addEventListener('pointermove',e=>{
+  const r=b.getBoundingClientRect(); b.style.setProperty('--mx',(e.clientX-r.left)+'px'); }));
 
-const ICE=[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}];
-const MAXBR=50_000_000;
-const SET={ w:1920, h:1080, fps:60, pref:"maintain-resolution", blend:"screen" };
+/* ---- ICE (STUN + TURN dal server) ---- */
+let ICE=[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}];
+let iceLoaded=false;
+async function loadIce(){
+  if(iceLoaded) return;
+  try{
+    const r=await fetch('/ice',{cache:'no-store'});
+    const j=await r.json();
+    if(j && Array.isArray(j.iceServers) && j.iceServers.length) ICE=j.iceServers;
+    iceLoaded=true;
+  }catch(e){ /* si resta col fallback STUN */ }
+}
+
+const SET={ w:1920, h:1080, fps:60, pref:"maintain-resolution", blend:"screen", qual:"auto" };
 const BLENDS=[["screen","Schermo"],["lighten","Chiarisci"],["lighter","Additivo"],
   ["multiply","Moltiplica"],["overlay","Sovrapposizione"],["difference","Differenza"]];
 function readSettings(){
@@ -194,17 +308,39 @@ function readSettings(){
   const f=($('setFps')||{}).value; if(f) SET.fps=Number(f);
   const p=($('setPref')||{}).value; if(p) SET.pref=p;
   const b=($('setBlend')||{}).value; if(b) SET.blend=b;
+  const q=($('setQual')||{}).value; if(q) SET.qual=q;
+}
+// bitrate legato a risoluzione*fps (bit/pixel) invece di un cap fisso enorme
+function targetBitrate(){
+  const bpp = SET.qual==="max" ? 0.16 : SET.qual==="high" ? 0.12 : 0.09; // auto
+  const cap = SET.qual==="max" ? 45_000_000 : SET.qual==="high" ? 25_000_000 : 15_000_000;
+  return Math.min(Math.round(SET.w*SET.h*SET.fps*bpp), cap);
 }
 async function tuneSenders(pc){
   for(const s of pc.getSenders()){
     if(!s.track || s.track.kind!=="video") continue;
     const p=s.getParameters();
     if(!p.encodings || !p.encodings.length) p.encodings=[{}];
-    p.encodings[0].maxBitrate=MAXBR;
+    p.encodings[0].maxBitrate=targetBitrate();
     p.encodings[0].maxFramerate=SET.fps;
     p.degradationPreference=SET.pref;
     try{ await s.setParameters(p); }catch(e){}
   }
+}
+// preferisci H264 (hardware, bassa latenza) per la parte video: meno lag sul gioco
+function preferCodec(pc){
+  try{
+    if(!('getCapabilities' in RTCRtpReceiver)) return;
+    const caps=RTCRtpReceiver.getCapabilities('video'); if(!caps) return;
+    const order=c=>{ const m=c.mimeType.toLowerCase();
+      if(m==='video/h264') return 0; if(m==='video/vp9') return 1; if(m==='video/vp8') return 2; return 3; };
+    const sorted=[...caps.codecs].sort((a,b)=>order(a)-order(b));
+    for(const tr of pc.getTransceivers()){
+      if(tr.sender && tr.sender.track && tr.sender.track.kind==='video' && tr.setCodecPreferences){
+        try{ tr.setCodecPreferences(sorted); }catch(e){}
+      }
+    }
+  }catch(e){}
 }
 const NEEDS={ sub:["overlay"], phoneview:["fusionsrc"] };
 
@@ -218,32 +354,68 @@ function videoFor(stream){
   return vids[stream.id];
 }
 
+/* ---- connessione a una stanza (signaling + WebRTC) ---- */
 function RoomConn(opts){
-  const self={ role:opts.role, code:opts.code, id:null, peers:new Map(), conns:new Map() };
+  const self={ role:opts.role, code:opts.code, id:null, peers:new Map(), conns:new Map(),
+    ws:null, closed:false, appPing:null };
   const proto=location.protocol==="https:"?"wss":"ws";
-  const ws=new WebSocket(proto+"://"+location.host); self.ws=ws;
-  ws.onopen=()=> ws.send(JSON.stringify(opts.create
-    ? {t:"create",role:self.role} : {t:"join",code:self.code,role:self.role}));
-  ws.onmessage=ev=>handle(JSON.parse(ev.data));
-  const sig=(to,payload)=>ws.send(JSON.stringify({t:"sig",to,payload}));
-  function newPC(peerId,peerRole){
-    const pc=new RTCPeerConnection({iceServers:ICE});
+
+  function open(){
+    const ws=new WebSocket(proto+"://"+location.host); self.ws=ws;
+    ws.onopen=()=>{
+      opts.onSocket&&opts.onSocket(true);
+      ws.send(JSON.stringify(opts.create ? {t:"create",role:self.role} : {t:"join",code:self.code,role:self.role}));
+      // ping applicativo: tiene vivo il socket (proxy/Render chiudono gli idle)
+      clearInterval(self.appPing);
+      self.appPing=setInterval(()=>{ if(ws.readyState===1) ws.send(JSON.stringify({t:"ping"})); }, 25000);
+    };
+    ws.onmessage=ev=>{ let m; try{m=JSON.parse(ev.data);}catch{return;} if(m.t==="pong")return; handle(m); };
+    ws.onclose=()=>{
+      clearInterval(self.appPing);
+      opts.onSocket&&opts.onSocket(false);
+      if(self.closed) return;
+      // il "create" ricrea una stanza nuova (codice diverso): non riconnettere da solo,
+      // avvisa e basta. Il "join" invece puo' ritentare.
+      if(opts.create){ opts.onError&&opts.onError("Connessione al server persa. Ricarica per ripartire."); }
+      else { setTimeout(()=>{ if(!self.closed) open(); }, 1500); }
+    };
+    ws.onerror=()=>{ try{ws.close();}catch(e){} };
+  }
+
+  const sig=(to,payload)=>{ if(self.ws&&self.ws.readyState===1) self.ws.send(JSON.stringify({t:"sig",to,payload})); };
+
+  function newPC(peerId,peerRole,didInitiate){
+    const pc=new RTCPeerConnection({iceServers:ICE, iceCandidatePoolSize:2});
     pc.onicecandidate=e=>{ if(e.candidate) sig(peerId,{ice:e.candidate}); };
     pc.ontrack=e=>{ const s=e.streams[0]||new MediaStream([e.track]); opts.onStream&&opts.onStream(peerRole,s); };
-    pc.onconnectionstatechange=()=>{ if(pc.connectionState==="connected") opts.onUp&&opts.onUp(); };
-    self.conns.set(peerId,{pc,role:peerRole}); return pc;
+    pc.onconnectionstatechange=()=>{ opts.onConn&&opts.onConn(peerRole,pc.connectionState,pc); if(pc.connectionState==="connected") opts.onUp&&opts.onUp(pc); };
+    pc.oniceconnectionstatechange=()=>{
+      const st=pc.iceConnectionState;
+      opts.onIce&&opts.onIce(peerRole,st,pc);
+      if((st==="failed"||st==="disconnected")){
+        const c=self.conns.get(peerId);
+        if(c && c.didInitiate){ restart(peerId); }
+        else { try{ pc.restartIce&&pc.restartIce(); }catch(e){} }
+      }
+    };
+    self.conns.set(peerId,{pc,role:peerRole,didInitiate:!!didInitiate}); return pc;
   }
   async function initiateTo(p){
-    const pc=newPC(p.id,p.role);
+    const pc=newPC(p.id,p.role,true);
     const st=opts.getTracks&&opts.getTracks();
     if(st) st.getTracks().forEach(t=>pc.addTrack(t,st));
+    preferCodec(pc);
     const o=await pc.createOffer(); await pc.setLocalDescription(o); tuneSenders(pc); sig(p.id,{sdp:pc.localDescription});
+  }
+  async function restart(peerId){
+    const c=self.conns.get(peerId); if(!c) return;
+    try{ const o=await c.pc.createOffer({iceRestart:true}); await c.pc.setLocalDescription(o); sig(peerId,{sdp:c.pc.localDescription}); }catch(e){}
   }
   function handlePeer(p){ self.peers.set(p.id,p.role); if((NEEDS[p.role]||[]).includes(self.role)) initiateTo(p); }
   async function onSig(from,p){
     let c=self.conns.get(from);
     if(p.sdp){
-      if(p.sdp.type==="offer"){ const pc=c?c.pc:newPC(from,self.peers.get(from));
+      if(p.sdp.type==="offer"){ const pc=c?c.pc:newPC(from,self.peers.get(from),false);
         await pc.setRemoteDescription(p.sdp); const a=await pc.createAnswer(); await pc.setLocalDescription(a); sig(from,{sdp:pc.localDescription});
       } else if(c){ await c.pc.setRemoteDescription(p.sdp); }
     } else if(p.ice&&c){ try{await c.pc.addIceCandidate(p.ice);}catch(e){} }
@@ -252,9 +424,11 @@ function RoomConn(opts){
     if(m.t==="created"||m.t==="joined"){ self.id=m.id; self.code=m.code; (m.peers||[]).forEach(handlePeer); opts.onReady&&opts.onReady(self);
     } else if(m.t==="peer-joined"){ handlePeer({id:m.id,role:m.role}); opts.onPeer&&opts.onPeer(m.role);
     } else if(m.t==="sig"){ onSig(m.from,m.payload);
-    } else if(m.t==="peer-left"){ const c=self.conns.get(m.id); if(c){try{c.pc.close();}catch(e){}} self.conns.delete(m.id); self.peers.delete(m.id);
+    } else if(m.t==="peer-left"){ const c=self.conns.get(m.id); if(c){try{c.pc.close();}catch(e){}} self.conns.delete(m.id); self.peers.delete(m.id); opts.onPeerLeft&&opts.onPeerLeft(m.id);
     } else if(m.t==="error"){ opts.onError&&opts.onError(m.msg); }
   }
+  self.close=()=>{ self.closed=true; clearInterval(self.appPing); try{self.ws&&self.ws.close();}catch(e){} for(const[,c]of self.conns){try{c.pc.close();}catch(e){}} };
+  open();
   return self;
 }
 
@@ -268,42 +442,64 @@ function parseCode(s){ s=(s||"").trim();
   const m=s.match(/([A-Za-z0-9]{4})\s*$/); return m?m[1].toUpperCase():""; }
 
 let gameStream=null, overlayStream=null, fusionStream=null, viewerCode=null;
+let mainSub=null, mainSrc=null, ovConn=null, phoneConn=null;
 
 async function startOverlay(){
   readSettings();
-  let s; try{ setStatus('Seleziona lo schermo da inviare (overlay su nero)...','warn'); s=await grab(); }
-  catch(e){ setStatus('Cattura annullata.','warn'); return; }
-  RoomConn({ role:"overlay", create:true, getTracks:()=>s,
+  showBoot("Preparo il collegamento…","Cerco il percorso migliore (STUN/TURN).");
+  await loadIce();
+  let s; try{ hideBoot(); setStatus('Seleziona lo schermo da inviare (overlay su nero)…','warn'); s=await grab(); }
+  catch(e){ hideBoot(); setStatus('Cattura annullata.','warn'); return; }
+  s.getVideoTracks()[0].addEventListener('ended',()=>{ setStatus('Cattura interrotta.','warn'); toast('Condivisione schermo interrotta','warn'); });
+  ovConn=RoomConn({ role:"overlay", create:true, getTracks:()=>s,
     onReady:c=>{ const link=location.origin+location.pathname+"?main="+c.code;
+      $('ovCode').textContent=c.code;
       $('ovShare').textContent=link; $('ovCard').classList.add('on'); $('mainCard').classList.remove('on');
-      setStatus('Link pronto: mandalo a chi vuole l\'overlay.','ok'); },
-    onPeer:r=>{ if(r==="sub") $('ovStatus2').textContent="Uno schermo si e' collegato ✓ (puoi averne piu' d'uno)"; },
-    onError:m=>setStatus(m,'warn') });
+      setStatus('Overlay attivo. Manda il link (o il codice) a chi vuole l\'overlay.','ok'); toast('Overlay pronto ✓','ok'); },
+    onPeer:r=>{ if(r==="sub"){ $('ovStatus2').textContent="Uno schermo si e' collegato ✓ (puoi averne piu' d'uno)"; toast('Uno schermo si è collegato','ok'); } },
+    onError:m=>{ setStatus(m,'err'); toast(m,'err'); } });
 }
+
 async function startMain(){
   readSettings();
-  try{ setStatus('Seleziona lo schermo di gioco...','warn'); gameStream=await grab(); }
-  catch(e){ setStatus('Cattura annullata.','warn'); return; }
+  showBoot("Preparo il collegamento…","Cerco il percorso migliore (STUN/TURN).");
+  await loadIce();
+  try{ hideBoot(); setStatus('Seleziona lo schermo di gioco…','warn'); gameStream=await grab(); }
+  catch(e){ hideBoot(); setStatus('Cattura annullata.','warn'); return; }
+  gameStream.getVideoTracks()[0].addEventListener('ended',()=>{ toast('Cattura schermo di gioco interrotta','warn'); });
   $('mainCard').classList.add('on'); $('ovCard').classList.remove('on');
   const pre=new URLSearchParams(location.search).get("main")||new URLSearchParams(location.search).get("room");
   if(pre) $('ovLink').value=pre;
   setStatus('Schermo pronto. Incolla il link dell\'overlay e premi Collega.');
 }
+
 function mainConnect(){
   const code=parseCode($('ovLink').value);
-  if(!code){ setStatus('Link/codice non valido.','warn'); return; }
+  if(!code){ setStatus('Link/codice non valido.','warn'); toast('Link/codice non valido','warn'); return; }
   $('cv').width=SET.w; $('cv').height=SET.h;
   showStage('cv'); startDrawMain();
+  setConn('connecting','In collegamento all\'overlay…');
   fusionStream=$('cv').captureStream(SET.fps);
   const ft=fusionStream.getVideoTracks()[0]; if(ft) ft.contentHint="detail";
-  RoomConn({ role:"fusionsrc", create:true, getTracks:()=>fusionStream,
-    onReady:c=>{ viewerCode=c.code; $('phoneBtn').style.display="inline-block"; } });
-  RoomConn({ role:"sub", code, onStream:(r,s)=>{ if(r==="overlay"){ overlayStream=s; setStatus('Fusione attiva','ok'); } },
-    onError:m=>setStatus(m,'warn') });
-  badge('La tua fusione - stanza '+code);
+  // sorgente della fusione per i telefoni/altri schermi
+  mainSrc=RoomConn({ role:"fusionsrc", create:true, getTracks:()=>fusionStream,
+    onReady:c=>{ viewerCode=c.code; $('phoneBtn').style.display="inline-block"; },
+    onError:m=>toast(m,'err') });
+  // ricezione dell'overlay
+  mainSub=RoomConn({ role:"sub", code,
+    onStream:(r,s)=>{ if(r==="overlay"){ overlayStream=s; setStatus('Fusione attiva','ok'); } },
+    onIce:(r,st,pc)=>{ if(r!=="overlay")return;
+      if(st==="connected"||st==="completed"){ setConn('ok','Overlay collegato'); }
+      else if(st==="checking"){ setConn('connecting','Handshake in corso…'); }
+      else if(st==="failed"){ setConn('err','Connessione fallita — riprovo…'); }
+      else if(st==="disconnected"){ setConn('warn','Connessione instabile…'); } },
+    onError:m=>{ setConn('err',m); toast(m,'err'); } });
+  startStats(mainSub,'overlay');
+  badge('La tua fusione — stanza '+code);
 }
+
 function startDrawMain(){
-  const cv=$('cv'), ctx=cv.getContext('2d');
+  const cv=$('cv'), ctx=cv.getContext('2d',{alpha:false});
   (function loop(){
     ctx.globalCompositeOperation='source-over'; ctx.fillStyle='#000'; ctx.fillRect(0,0,cv.width,cv.height);
     if(gameStream){ const v=videoFor(gameStream); if(v.videoWidth) ctx.drawImage(v,0,0,cv.width,cv.height); }
@@ -312,10 +508,64 @@ function startDrawMain(){
     requestAnimationFrame(loop);
   })();
 }
-function startPhone(code){
-  showStage('fus'); setStatus('Collegamento...','warn'); badge('Vista - stanza '+code);
-  RoomConn({ role:"phoneview", code, onStream:(r,s)=>{ if(r==="fusionsrc"){ const f=$('fus'); f.srcObject=s; f.play().catch(()=>{}); } },
-    onError:m=>{ badge(m); } });
+
+async function startPhone(code){
+  readSettings();
+  showStage('fus'); setConn('connecting','Collegamento…'); badge('Vista — stanza '+code);
+  showBoot("Collegamento alla fusione…","Se il server dormiva, il piano gratuito può metterci ~30s.");
+  bootTimer=setTimeout(()=>$('bootS').textContent="Il server si sta svegliando (piano gratuito), ancora un attimo…",4000);
+  await loadIce();
+  phoneConn=RoomConn({ role:"phoneview", code,
+    onSocket:up=>{ if(up) $('bootT').textContent="Server connesso, aspetto il video…"; },
+    onStream:(r,s)=>{ if(r==="fusionsrc"){ hideBoot(); const f=$('fus'); f.srcObject=s; f.play().catch(()=>{}); } },
+    onIce:(r,st)=>{ if(r!=="fusionsrc")return;
+      if(st==="connected"||st==="completed"){ hideBoot(); setConn('ok','Collegato'); }
+      else if(st==="failed"){ setConn('err','Connessione fallita — riprovo…'); }
+      else if(st==="disconnected"){ setConn('warn','Instabile…'); } },
+    onError:m=>{ hideBoot(); setConn('err',m); badge(m); toast(m,'err'); } });
+  startStats(phoneConn,'fusionsrc');
+}
+
+/* ---- pill di stato + HUD statistiche ---- */
+function setConn(kind,txt){
+  const p=$('connpill'); p.style.display='flex';
+  const col=kind==='ok'?'var(--ok)':kind==='err'?'var(--err)':kind==='warn'?'var(--warn)':'#8fd6ff';
+  p.querySelector('.dot').style.color=col; $('connT').textContent=txt;
+  p.querySelector('.dot').style.animation = (kind==='ok') ? 'none' : 'pulse 1.4s ease-in-out infinite';
+}
+let hudOn=false, statsTimer=null, statsSrc=null, statsRole=null, lastBytes=0, lastTs=0;
+function toggleHud(){ hudOn=!hudOn; $('hud').style.display=hudOn?'block':'none'; }
+function startStats(conn,role){ statsSrc=conn; statsRole=role; lastBytes=0; lastTs=0;
+  if(statsTimer) clearInterval(statsTimer);
+  statsTimer=setInterval(pollStats,1000);
+}
+async function pollStats(){
+  if(!statsSrc) return;
+  let pc=null; for(const[,c]of statsSrc.conns){ if(c.role===statsRole){ pc=c.pc; break; } }
+  if(!pc){ return; }
+  try{
+    const rep=await pc.getStats(); let inb=null,relay=false,rtt=null,fps=null;
+    let selectedPairId=null;
+    rep.forEach(r=>{ if(r.type==='transport'&&r.selectedCandidatePairId) selectedPairId=r.selectedCandidatePairId; });
+    rep.forEach(r=>{
+      if(r.type==='inbound-rtp'&&r.kind==='video'){ inb=r; if(r.framesPerSecond) fps=r.framesPerSecond; }
+      if(r.type==='candidate-pair'&&(r.nominated||r.id===selectedPairId)&&r.state==='succeeded'){ if(r.currentRoundTripTime!=null) rtt=r.currentRoundTripTime; }
+      if(r.type==='local-candidate'&&r.candidateType==='relay') relay=true;
+    });
+    // rileva relay dal pair selezionato
+    let localId=null; rep.forEach(r=>{ if(r.type==='candidate-pair'&&(r.id===selectedPairId||r.nominated)&&r.state==='succeeded') localId=r.localCandidateId; });
+    if(localId) rep.forEach(r=>{ if(r.id===localId&&r.candidateType==='relay') relay=true; });
+    let kbps=0;
+    if(inb){ const now=performance.now(); const bytes=inb.bytesReceived||0;
+      if(lastTs){ kbps=Math.max(0,Math.round((bytes-lastBytes)*8/1000/((now-lastTs)/1000))); }
+      lastBytes=bytes; lastTs=now; }
+    const path=relay?'<span class="relay">relay (TURN)</span>':'<span class="direct">diretto</span>';
+    $('hud').innerHTML=
+      '<div><b>'+(fps?Math.round(fps):'—')+'</b> fps</div>'+
+      '<div><b>'+(kbps>1000?(kbps/1000).toFixed(1)+' Mbps':kbps+' kbps')+'</b></div>'+
+      '<div><b>'+(rtt!=null?Math.round(rtt*1000):'—')+'</b> ms rtt</div>'+
+      '<div>via '+path+'</div>';
+  }catch(e){}
 }
 
 function showStage(which){
@@ -327,9 +577,9 @@ function showStage(which){
     $('blendBtn').textContent="🎨 Fusione: "+blendLabel(SET.blend); }
   stopRain();
 }
-function badge(t){ const b=$('badge'); b.style.display='block'; b.textContent=t; setTimeout(()=>{ b.style.display='none'; }, 5000); }
+function badge(t){ const b=$('badge'); b.style.display='block'; b.textContent=t; clearTimeout(badge._t); badge._t=setTimeout(()=>{ b.style.display='none'; }, 5000); }
 function copyPhone(){ const link=location.origin+location.pathname+"?view="+viewerCode;
-  navigator.clipboard.writeText(link); badge('📱 Link telefono copiato!'); }
+  navigator.clipboard.writeText(link).then(()=>{ toast('📱 Link telefono copiato!','ok'); }); }
 function blendLabel(v){ const b=BLENDS.find(x=>x[0]===v); return b?b[1]:v; }
 function cycleBlend(){
   const i=BLENDS.findIndex(x=>x[0]===SET.blend);
@@ -337,35 +587,42 @@ function cycleBlend(){
   const sel=$('setBlend'); if(sel) sel.value=SET.blend;
   $('blendBtn').textContent="🎨 Fusione: "+blendLabel(SET.blend);
 }
-function toggleFs(){ if(!document.fullscreenElement) $('stage').requestFullscreen(); else document.exitFullscreen(); }
-document.addEventListener('keydown', e=>{ if($('stage').style.display!=='block') return; if(e.key==='f'||e.key==='F') toggleFs(); });
+function toggleFs(){ if(!document.fullscreenElement) $('stage').requestFullscreen&&$('stage').requestFullscreen(); else document.exitFullscreen(); }
+document.addEventListener('keydown', e=>{ if($('stage').style.display!=='block') return;
+  if(e.key==='f'||e.key==='F') toggleFs();
+  if(e.key==='s'||e.key==='S') toggleHud();
+  if(e.key==='b'||e.key==='B'){ if($('blendBtn').style.display!=='none') cycleBlend(); }
+});
 
 /* ---- matrix rain di sfondo ---- */
 let rainTimer=null;
 function startRain(){
   const c=$('rain'), x=c.getContext('2d');
-  function size(){ c.width=innerWidth; c.height=innerHeight; }
+  const step=16; let cols=0, y=[];
+  function size(){ c.width=innerWidth; c.height=innerHeight; cols=Math.ceil(c.width/step);
+    y=Array.from({length:cols},()=>Math.random()*-40|0); }
   size(); addEventListener('resize',size);
-  const chars="01ﾊﾐﾋｰｳｼﾅﾉABCDEF6"; const step=16;
-  let cols=Math.floor(c.width/step); let y=Array(cols).fill(0).map(()=>Math.random()*-40|0);
+  const chars="01ﾊﾐﾋｰｳｼﾅﾉABCDEF6";
   rainTimer=setInterval(()=>{
-    x.fillStyle="rgba(10,12,16,0.09)"; x.fillRect(0,0,c.width,c.height);
+    x.fillStyle="rgba(7,10,14,0.09)"; x.fillRect(0,0,c.width,c.height);
     x.font=step+"px monospace";
-    cols=Math.floor(c.width/step);
     for(let i=0;i<cols;i++){
       const t=chars[Math.random()*chars.length|0];
-      const yy=(y[i]||0)*step;
+      const yy=y[i]*step;
       x.fillStyle = Math.random()>0.9 ? "#a8ffd0" : "#1fe07a";
       x.fillText(t, i*step, yy);
-      if(yy>c.height && Math.random()>0.975) y[i]=0; y[i]=(y[i]||0)+1;
+      if(yy>c.height && Math.random()>0.975){ y[i]=0; } else { y[i]++; }
     }
   }, 55);
 }
 function stopRain(){ if(rainTimer){ clearInterval(rainTimer); rainTimer=null; } $('rain').style.display='none'; }
 
+/* ---- avvio ---- */
 (function(){ const q=new URLSearchParams(location.search);
   if(q.get("view")) startPhone(q.get("view").toUpperCase());
-  else { startRain(); if(q.get("main")||q.get("room")) setStatus('Premi "SCHERMO PRINCIPALE" per collegarti all\'overlay.'); }
+  else { startRain(); if(q.get("main")||q.get("room")){ setStatus('Premi "SCHERMO PRINCIPALE" per collegarti all\'overlay.'); toast('Link overlay rilevato — premi "Schermo principale"','ok'); } }
+  // pre-carica gli ICE in background cosi' il primo click e' istantaneo
+  loadIce();
 })();
 </script>
 </body>
