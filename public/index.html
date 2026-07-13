@@ -178,9 +178,9 @@
     </select></div>
   <div class="srow"><span>Latenza (buffer)</span>
     <select id="setJit">
-      <option value="0" selected>Minima</option>
-      <option value="100">Bilanciata</option>
-      <option value="250">Fluida</option>
+      <option value="0">Minima (solo LAN)</option>
+      <option value="120" selected>Bilanciata</option>
+      <option value="300">Fluida (rete instabile)</option>
     </select></div>
   <div class="srow"><span>Se la banda cala</span>
     <select id="setPref">
@@ -306,7 +306,7 @@ async function loadIce(){
   }catch(e){ /* si resta col fallback STUN */ }
 }
 
-const SET={ w:1920, h:1080, fps:60, pref:"maintain-framerate", blend:"screen", qual:"auto", jitter:0 };
+const SET={ w:1920, h:1080, fps:60, pref:"maintain-framerate", blend:"screen", qual:"auto", jitter:120 };
 // hint di contenuto: "motion" = bassa latenza + priorita' ai 60fps (default);
 // "detail" solo in qualita' Massima, dove si preferisce la nitidezza del testo.
 function contentHint(){ return SET.qual==="max" ? "detail" : "motion"; }
