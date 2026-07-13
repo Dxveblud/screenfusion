@@ -362,10 +362,23 @@ function preferCodec(pc){
 const NEEDS={ sub:["overlay"], phoneview:["fusionsrc"] };
 
 const vids={};
+let vidHolder=null;
 function videoFor(stream){
   if(!vids[stream.id]){
+    // I <video> vanno ATTACCATI alla pagina, altrimenti Chrome strozza/mette in
+    // pausa il loro decoding (l'overlay lampeggia). Li tengo in un contenitore
+    // invisibile ma "renderizzato" (1px, quasi trasparente) cosi' restano vivi.
+    if(!vidHolder){
+      vidHolder=document.createElement('div');
+      vidHolder.style.cssText='position:fixed;left:0;top:0;width:2px;height:2px;'+
+        'opacity:.01;pointer-events:none;z-index:-1;overflow:hidden';
+      document.body.appendChild(vidHolder);
+    }
     const v=document.createElement('video');
-    v.srcObject=stream; v.muted=true; v.playsInline=true; v.play().catch(()=>{});
+    v.srcObject=stream; v.muted=true; v.playsInline=true; v.autoplay=true;
+    v.style.cssText='width:2px;height:2px';
+    vidHolder.appendChild(v);
+    v.play().catch(()=>{});
     vids[stream.id]=v;
   }
   return vids[stream.id];
