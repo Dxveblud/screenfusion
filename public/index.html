@@ -609,6 +609,16 @@ async function startPhone(code){
       else if(st==="failed"){ setConn('err','Connessione fallita — riprovo…'); }
       else if(st==="disconnected"){ setConn('warn','Instabile…'); } },
     onError:m=>{ hideBoot(); setConn('err',m); badge(m); toast(m,'err'); } });
+  // Se dopo 14s non c'è ancora video né connessione P2P, quasi sempre è la rete
+  // che blocca il collegamento diretto e manca un TURN: dillo invece di restare neri.
+  setTimeout(()=>{
+    const f=$('fus');
+    if(phoneConn && !phoneConn.closed && !phoneConn.hasLive() && !(f && f.srcObject)){
+      hideBoot();
+      setConn('err','Video non collegato: la rete blocca il P2P (serve un TURN).');
+      badge('Non riesco a passare il video su questa rete — serve un relay TURN. Vedi le impostazioni TURN del server.');
+    }
+  }, 14000);
   startStats(phoneConn,'fusionsrc');
 }
 

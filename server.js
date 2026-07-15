@@ -19,43 +19,86 @@ const MIME = { ".html":"text/html; charset=utf-8", ".js":"text/javascript; chars
   ".svg":"image/svg+xml", ".json":"application/json; charset=utf-8" };
 
 // ---- Configurazione ICE (STUN + TURN) ---------------------------------------
-// STUN da solo basta quando i due router permettono la connessione diretta.
-// Su 4G/5G, NAT simmetrico, reti aziendali/universitarie serve un TURN che fa
-// da relay. Di default usiamo i TURN pubblici gratuiti di OpenRelay (Metered).
-// Se imposti le env TURN_URLS / TURN_USERNAME / TURN_CREDENTIAL su Render, quelli
-// hanno la precedenza (piu' affidabili di un servizio pubblico condiviso).
-function iceServers() {
-  const stun = [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun.cloudflare.com:3478" },
-  ];
-  if (process.env.TURN_URLS) {
-    const urls = process.env.TURN_URLS.split(",").map(s => s.trim()).filter(Boolean);
-    return [...stun, {
-      urls,
-      username: process.env.TURN_USERNAME || "",
-      credential: process.env.TURN_CREDENTIAL || "",
-    }];
-  }
-  // Fallback pubblico gratuito (OpenRelay). Puo' avere limiti/lentezza: per uso
-  // serio metti un tuo TURN via env. TCP 443 aiuta dietro firewall aggressivi.
-  const cred = { username: "openrelayproject", credential: "openrelayproject" };
-  return [
-    ...stun,
-    { urls: "turn:openrelay.metered.ca:80", ...cred },
-    { urls: "turn:openrelay.metered.ca:443", ...cred },
-    { urls: "turn:openrelay.metered.ca:443?transport=tcp", ...cred },
-  ];
+// STUN da solo basta quando i due router permettono la connessione diretta
+// (stessa WiFi, o NAT "gentile"). Su 4G/5G, NAT simmetrico, reti aziendali/
+// universitarie serve per forza un TURN che fa da relay, altrimenti il video
+// P2P non passa e il telefono resta nero.
+//
+// Come attivare un TURN funzionante (necessario per "funziona sempre"):
+//   1) crea un account gratuito su https://www.metered.ca (50GB/mese gratis)
+//   2) dashboard -> TURN Server: copia l'URL "credentials" gia' pronto,
+//      del tipo  https://TUOAPP.metered.live/api/v1/turn/credentials?apiKey=XXXX
+//   3) su Render, nel servizio ScreenFusion -> Environment, aggiungi:
+//        TURN_CREDENTIAL_URL = <quell'URL>
+//   In alternativa puoi mettere un TURN tuo con TURN_URLS / TURN_USERNAME /
+//   TURN_CREDENTIAL (hanno la precedenza su tutto).
+const STUN = [
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" },
+  { urls: "stun:stun.cloudflare.com:3478" },
+];
+
+// Le credenziali TURN prese via API (Metered) durano ore: le teniamo in cache
+// cosi' non chiamiamo l'API a ogni /ice.
+let _iceCache = null;                      // { servers:[...], exp:timestamp }
+const ICE_TTL_MS = 55 * 60 * 1000;
+
+function staticTurn() {
+  if (!process.env.TURN_URLS) return null;
+  const urls = process.env.TURN_URLS.split(",").map(s => s.trim()).filter(Boolean);
+  return [{
+    urls,
+    username: process.env.TURN_USERNAME || "",
+    credential: process.env.TURN_CREDENTIAL || "",
+  }];
 }
 
-const server = http.createServer((req, res) => {
+function turnCredentialUrl() {
+  if (process.env.TURN_CREDENTIAL_URL) return process.env.TURN_CREDENTIAL_URL;
+  if (process.env.METERED_API_KEY && process.env.METERED_APP)
+    return `https://${process.env.METERED_APP}.metered.live/api/v1/turn/credentials?apiKey=${process.env.METERED_API_KEY}`;
+  return null;
+}
+
+function fetchJson(url) {
+  return new Promise((resolve, reject) => {
+    const lib = url.startsWith("https") ? require("https") : require("http");
+    const req = lib.get(url, res => {
+      if (res.statusCode < 200 || res.statusCode >= 300) { res.resume(); return reject(new Error("HTTP " + res.statusCode)); }
+      let data = ""; res.on("data", c => data += c);
+      res.on("end", () => { try { resolve(JSON.parse(data)); } catch (e) { reject(e); } });
+    });
+    req.on("error", reject);
+    req.setTimeout(6000, () => req.destroy(new Error("timeout")));
+  });
+}
+
+async function turnServers() {
+  const st = staticTurn();
+  if (st) return st;                                   // TURN manuale: precedenza
+  const url = turnCredentialUrl();
+  if (!url) return [];                                 // nessun TURN configurato
+  if (_iceCache && _iceCache.exp > Date.now()) return _iceCache.servers;
+  try {
+    const j = await fetchJson(url);
+    const servers = Array.isArray(j) ? j : (Array.isArray(j.iceServers) ? j.iceServers : []);
+    if (servers.length) { _iceCache = { servers, exp: Date.now() + ICE_TTL_MS }; return servers; }
+  } catch (e) { console.log("TURN fetch fallito:", e.message); }
+  return _iceCache ? _iceCache.servers : [];           // usa l'ultima cache buona
+}
+
+async function getIceServers() {
+  return [...STUN, ...(await turnServers())];
+}
+
+const server = http.createServer(async (req, res) => {
   let url = decodeURIComponent(req.url.split("?")[0]);
 
   if (url === "/healthz") { res.writeHead(200, { "Content-Type": "text/plain" }); res.end("ok"); return; }
   if (url === "/ice") {
+    const iceServers = await getIceServers();
     res.writeHead(200, { "Content-Type": MIME[".json"], "Cache-Control": "no-store" });
-    res.end(JSON.stringify({ iceServers: iceServers() }));
+    res.end(JSON.stringify({ iceServers }));
     return;
   }
 
