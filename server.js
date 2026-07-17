@@ -95,8 +95,10 @@ async function getIceServers() {
 // I token stanno sul Worker licenze esistente ({ nome: {product,hwid,expires} }).
 // La validazione la fa il SERVER (non il browser), cosi' i token non sono mai esposti.
 const LICENSE_WORKER_URL = (process.env.LICENSE_WORKER_URL || "https://tiny-waterfall-cedd.dxve97.workers.dev").replace(/\/+$/, "");
+const LICENSE_API_KEY = process.env.LICENSE_API_KEY || "";   // serve per SCRIVERE il binding dispositivi
 const REQUIRE_TOKEN = (process.env.REQUIRE_TOKEN || "1") !== "0";
 const REQUIRED_PRODUCT = (process.env.REQUIRED_PRODUCT || "screenfusion").toLowerCase();
+const MAX_DEVICES = Math.max(1, parseInt(process.env.MAX_DEVICES || "2", 10) || 2);
 let _licCache = { data: null, ts: 0 };
 
 async function fetchLicenses() {
@@ -104,6 +106,21 @@ async function fetchLicenses() {
   const j = await fetchJson(LICENSE_WORKER_URL);
   _licCache = { data: (j && typeof j === "object") ? j : {}, ts: Date.now() };
   return _licCache.data;
+}
+function postJson(url, obj) {
+  return new Promise((resolve, reject) => {
+    const lib = url.startsWith("https") ? require("https") : require("http");
+    const u = new URL(url);
+    const data = Buffer.from(JSON.stringify(obj));
+    const req = lib.request({
+      hostname: u.hostname, path: (u.pathname || "/") + (u.search || ""),
+      port: u.port || (url.startsWith("https") ? 443 : 80), method: "POST",
+      headers: { "Content-Type": "application/json", "Content-Length": data.length },
+    }, res => { let b = ""; res.on("data", c => b += c); res.on("end", () => resolve({ status: res.statusCode, body: b })); });
+    req.on("error", reject);
+    req.setTimeout(8000, () => req.destroy(new Error("timeout")));
+    req.write(data); req.end();
+  });
 }
 function licenseActive(lic) {
   if (!lic || String(lic.product || "").toLowerCase() !== REQUIRED_PRODUCT) return false;
@@ -113,14 +130,27 @@ function licenseActive(lic) {
   if (!m) return true;
   return new Date(+m[3], +m[2] - 1, +m[1], 23, 59, 59).getTime() >= Date.now();
 }
-async function validateToken(token) {
+async function validateToken(token, device) {
   if (!REQUIRE_TOKEN) return { ok: true };
   token = String(token || "").trim();
   if (!token) return { ok: false, reason: "missing" };
   try {
-    const lic = (await fetchLicenses())[token];
+    const all = await fetchLicenses();
+    const lic = all[token];
     if (!lic) return { ok: false, reason: "notfound" };
     if (!licenseActive(lic)) return { ok: false, reason: "expired", expires: lic.expires };
+    // Binding: max MAX_DEVICES dispositivi per token. Attivo solo se il server ha la API key per scrivere.
+    device = String(device || "").trim();
+    if (LICENSE_API_KEY && device) {
+      const devices = Array.isArray(lic.devices) ? lic.devices : [];
+      if (!devices.includes(device)) {
+        if (devices.length >= MAX_DEVICES) return { ok: false, reason: "devicelimit" };
+        lic.devices = [...devices, device];
+        all[token] = lic;
+        _licCache.data = all;   // aggiorna la cache subito
+        await postJson(LICENSE_WORKER_URL, { key: LICENSE_API_KEY, licenses: all });
+      }
+    }
     return { ok: true, expires: lic.expires };
   } catch (e) { return { ok: false, reason: "error" }; }
 }
@@ -133,9 +163,9 @@ const server = http.createServer(async (req, res) => {
     let body = "";
     req.on("data", c => { body += c; if (body.length > 4000) req.destroy(); });
     req.on("end", async () => {
-      let token = "";
-      try { token = JSON.parse(body || "{}").token || ""; } catch {}
-      const r = await validateToken(token);
+      let token = "", device = "";
+      try { const b = JSON.parse(body || "{}"); token = b.token || ""; device = b.device || ""; } catch {}
+      const r = await validateToken(token, device);
       res.writeHead(200, { "Content-Type": MIME[".json"], "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*" });
       res.end(JSON.stringify(r));
     });
@@ -196,10 +226,12 @@ wss.on("connection", (ws) => {
 
     if (m.t === "create") {
       // chi CONDIVIDE (crea una stanza) deve avere un token screenfusion valido
-      const auth = await validateToken(m.token);
+      const auth = await validateToken(m.token, m.device);
       if (!auth.ok) {
-        send(ws, { t: "error", auth: auth.reason,
-          msg: auth.reason === "expired" ? "Your subscription has expired." : "Invalid or missing access token." });
+        const msg = auth.reason === "expired" ? "Your subscription has expired."
+          : auth.reason === "devicelimit" ? "This token is already used on the maximum number of devices."
+          : "Invalid or missing access token.";
+        send(ws, { t: "error", auth: auth.reason, msg });
         return;
       }
       // se il client chiede un codice (riconnessione dell'host dopo un riavvio)

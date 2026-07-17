@@ -359,10 +359,12 @@ async function shareLink(){
 const DISCORD_INVITE="https://discord.gg/VPRV6FvhA9";   // invito del server
 $('discordBtn').href=DISCORD_INVITE;
 let authToken=localStorage.getItem('sf_token')||'';
+let deviceId=localStorage.getItem('sf_device');
+if(!deviceId){ deviceId=(self.crypto&&crypto.randomUUID)?crypto.randomUUID():(Math.random().toString(36).slice(2)+Date.now().toString(36)); localStorage.setItem('sf_device',deviceId); }
 let _needToken=true, _authResolve=null;
 (async()=>{ try{ const j=await (await fetch('/config',{cache:'no-store'})).json(); _needToken=j.requireToken!==false; }catch(e){} })();
 async function checkToken(tok){
-  try{ const r=await fetch('/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:tok})}); return await r.json(); }
+  try{ const r=await fetch('/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:tok,device:deviceId})}); return await r.json(); }
   catch(e){ return {ok:false,reason:'error'}; }
 }
 function ensureAuth(){
@@ -381,7 +383,9 @@ async function submitAuth(){
   if(r.ok){ authToken=tok; localStorage.setItem('sf_token',tok); $('authmodal').style.display='none';
     toast('Access unlocked ✓','ok'); if(_authResolve){ const f=_authResolve; _authResolve=null; f(true); } }
   else { $('authErr').textContent = r.reason==='expired' ? 'Subscription expired.'
-    : (r.reason==='notfound' ? 'Token not found.' : 'Invalid token.'); }
+    : r.reason==='notfound' ? 'Token not found.'
+    : r.reason==='devicelimit' ? 'This token is already used on the max number of devices.'
+    : 'Invalid token.'; }
 }
 function closeAuth(){ $('authmodal').style.display='none'; if(_authResolve){ const f=_authResolve; _authResolve=null; f(false); } }
 
@@ -502,7 +506,7 @@ function RoomConn(opts){
     const ws=new WebSocket(proto+"://"+location.host); self.ws=ws;
     ws.onopen=()=>{
       opts.onSocket&&opts.onSocket(true);
-      ws.send(JSON.stringify(opts.create ? {t:"create",role:self.role,code:self.code||undefined,token:authToken} : {t:"join",code:self.code,role:self.role}));
+      ws.send(JSON.stringify(opts.create ? {t:"create",role:self.role,code:self.code||undefined,token:authToken,device:deviceId} : {t:"join",code:self.code,role:self.role}));
       // ping applicativo: tiene vivo il socket (proxy/Render chiudono gli idle)
       clearInterval(self.appPing);
       self.appPing=setInterval(()=>{ if(ws.readyState===1) ws.send(JSON.stringify({t:"ping"})); }, 25000);
