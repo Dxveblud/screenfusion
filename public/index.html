@@ -7,72 +7,79 @@
 <link rel="icon" href="logo.png">
 <style>
   :root{
-    --bg:#070a0e; --bg2:#0f1320; --card:#131926cc; --line:#232a38; --text:#e9f0ea; --muted:#8b97a6;
-    --acc:#1fe07a; --acc-h:#3bf291; --acc-dim:#12b866; --main:#3b82f6; --main-h:#5a96ff;
-    --ok:#57dc82; --warn:#ffbe46; --err:#ff6b6b;
-    --glass:blur(14px) saturate(1.2);
+    --bg:#0b0e16; --bg2:#111726; --card:#151b2ae0; --line:#252c3d; --text:#eaeef6; --muted:#98a2b4;
+    --acc:#34d399; --acc-h:#5fe3ad; --acc-dim:#10b981; --main:#6366f1; --main-h:#818cf8;
+    --ok:#34d399; --warn:#fbbf24; --err:#f87171;
+    --glass:blur(18px) saturate(1.15);
+    --radius:18px;
   }
-  *{box-sizing:border-box;font-family:"Segoe UI",system-ui,-apple-system,sans-serif}
+  *{box-sizing:border-box;font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif}
   html,body{height:100%}
-  body{margin:0;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;
-    -webkit-tap-highlight-color:transparent}
-  /* sfondo animato a strati */
-  #rain{position:fixed;inset:0;z-index:0;opacity:.12;pointer-events:none}
+  body{margin:0;color:var(--text);min-height:100vh;overflow-x:hidden;
+    -webkit-tap-highlight-color:transparent;
+    background:var(--bg);}
+  /* sfondo moderno: gradiente morbido + aurore soffuse, niente pioggia Matrix */
+  #rain{display:none}
   #glow{position:fixed;inset:0;z-index:0;pointer-events:none;
     background:
-      radial-gradient(900px 500px at 50% -12%, #123f2a55 0%, transparent 60%),
-      radial-gradient(700px 700px at 110% 10%, #0e2a4a44 0%, transparent 55%),
-      radial-gradient(600px 600px at -10% 90%, #12261c55 0%, transparent 55%);
-    animation:breathe 12s ease-in-out infinite}
-  @keyframes breathe{0%,100%{opacity:.85}50%{opacity:1}}
+      radial-gradient(1100px 700px at 50% -20%, #6366f126 0%, transparent 60%),
+      radial-gradient(800px 800px at 115% 8%, #34d39918 0%, transparent 55%),
+      radial-gradient(700px 700px at -12% 100%, #6366f11c 0%, transparent 55%),
+      linear-gradient(180deg, #0b0e16 0%, #0d1120 100%);
+    animation:breathe 16s ease-in-out infinite}
+  @keyframes breathe{0%,100%{opacity:.9}50%{opacity:1}}
 
   #home{position:relative;z-index:1;max-width:620px;margin:0 auto;padding:22px 22px 40px}
 
-  header{display:flex;align-items:center;gap:14px;margin:22px 4px 6px;
+  header{display:flex;align-items:center;gap:15px;margin:34px 4px 10px;
     animation:drop .6s cubic-bezier(.2,.9,.2,1)}
-  header .logo{width:58px;height:58px;border-radius:15px;
-    box-shadow:0 0 0 1px #ffffff12,0 8px 30px #0009;
-    filter:drop-shadow(0 0 14px #1fe07a55)}
-  header .brand{font-size:25px;font-weight:800;letter-spacing:.3px;line-height:1.05}
-  header .brand span{color:var(--acc);text-shadow:0 0 22px #1fe07a66}
-  .tag{color:var(--muted);font-size:14.5px;margin:2px 4px 24px;line-height:1.5;animation:fade .8s .1s both}
+  header .logo{width:56px;height:56px;border-radius:16px;
+    box-shadow:0 0 0 1px #ffffff10,0 10px 34px #0007}
+  header .brand{font-size:26px;font-weight:750;letter-spacing:-.4px;line-height:1.05}
+  header .brand span{background:linear-gradient(120deg,var(--main-h),var(--acc));
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .tag{color:var(--muted);font-size:15px;margin:6px 4px 30px;line-height:1.6;max-width:34rem;
+    animation:fade .8s .1s both}
 
-  .btn{position:relative;border:0;border-radius:16px;color:#fff;font-size:18px;font-weight:700;
-    width:100%;padding:19px;cursor:pointer;margin:11px 0;overflow:hidden;text-align:left;
-    display:flex;align-items:center;gap:14px;
-    transition:transform .12s ease, box-shadow .25s;animation:fade .5s both}
-  .btn .ico{font-size:26px;line-height:1;flex:0 0 auto;filter:drop-shadow(0 2px 6px #0006)}
-  .btn .txt{display:block}
-  .btn small{display:block;font-weight:400;font-size:13px;opacity:.92;margin-top:3px}
+  .btn{position:relative;border:1px solid #ffffff10;border-radius:var(--radius);color:#fff;
+    font-size:17px;font-weight:650;width:100%;padding:20px;cursor:pointer;margin:12px 0;overflow:hidden;
+    text-align:left;display:flex;align-items:center;gap:15px;
+    transition:transform .14s ease, box-shadow .25s, border-color .25s;animation:fade .5s both}
+  .btn .ico{font-size:24px;line-height:1;flex:0 0 auto;width:46px;height:46px;border-radius:12px;
+    display:flex;align-items:center;justify-content:center;background:#ffffff1f;backdrop-filter:blur(4px)}
+  .btn .txt{display:block;letter-spacing:.1px}
+  .btn small{display:block;font-weight:400;font-size:13px;opacity:.9;margin-top:4px}
   .btn:hover{transform:translateY(-2px)}
   .btn:active{transform:translateY(0) scale(.995)}
-  .btn::after{content:"";position:absolute;inset:0;background:radial-gradient(300px 90px at var(--mx,50%) 0,#ffffff22,transparent 70%);opacity:0;transition:opacity .3s}
+  .btn::after{content:"";position:absolute;inset:0;background:radial-gradient(320px 100px at var(--mx,50%) 0,#ffffff1f,transparent 70%);opacity:0;transition:opacity .3s}
   .btn:hover::after{opacity:1}
-  .bMain{background:linear-gradient(135deg,#3b82f6,#6366f1);box-shadow:0 10px 30px #3b82f640}
-  .bMain:hover{box-shadow:0 16px 42px #3b82f666}
-  .bOv{background:linear-gradient(135deg,#12b866,#1fe07a);color:#04120a;box-shadow:0 10px 30px #1fe07a44}
-  .bOv:hover{box-shadow:0 16px 44px #1fe07a66}
+  .bMain{background:linear-gradient(135deg,var(--main),#7c83f4);box-shadow:0 12px 34px #6366f138}
+  .bMain:hover{box-shadow:0 18px 46px #6366f155;border-color:#ffffff24}
+  .bOv{background:linear-gradient(135deg,var(--acc-dim),var(--acc));color:#04231a;box-shadow:0 12px 34px #10b98130}
+  .bOv:hover{box-shadow:0 18px 46px #10b98150;border-color:#ffffff30}
+  .bOv .ico{background:#0a2c2133}
   .or{text-align:center;color:var(--muted);margin:14px 0 6px;font-size:13px;position:relative;
     text-transform:uppercase;letter-spacing:2px}
   .or::before,.or::after{content:"";position:absolute;top:50%;width:38%;height:1px;
     background:linear-gradient(90deg,transparent,var(--line))}
   .or::before{left:0;transform:scaleX(-1)} .or::after{right:0}
 
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
-    padding:16px;margin-top:12px;display:none;animation:fade .3s both;backdrop-filter:var(--glass)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px;margin-top:12px;display:none;animation:fade .3s both;backdrop-filter:var(--glass);
+    box-shadow:0 14px 40px #00000040}
   .card.on{display:block}
-  label{font-size:13px;color:var(--muted);display:block;margin-bottom:7px}
+  label{font-size:13px;color:var(--muted);display:block;margin-bottom:8px}
   .rowf{display:flex;gap:8px}
-  input{flex:1;background:#0b1119;color:var(--text);border:1px solid var(--line);
-    border-radius:10px;padding:12px;font-size:15px;min-width:0}
-  input:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3px #1fe07a22}
-  .ghost{background:#232a38;color:#fff;border:0;border-radius:10px;font-size:14px;font-weight:600;
+  input{flex:1;background:#0d1220;color:var(--text);border:1px solid var(--line);
+    border-radius:12px;padding:13px;font-size:15px;min-width:0;transition:border-color .15s, box-shadow .15s}
+  input:focus{outline:none;border-color:var(--main);box-shadow:0 0 0 3px #6366f133}
+  .ghost{background:#222a3b;color:#fff;border:1px solid #ffffff0f;border-radius:12px;font-size:14px;font-weight:600;
     padding:12px 16px;cursor:pointer;transition:background .15s, transform .1s;white-space:nowrap}
-  .ghost:hover{background:#333c4e} .ghost:active{transform:scale(.97)}
+  .ghost:hover{background:#2c3548} .ghost:active{transform:scale(.97)}
   .linkbox{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;word-break:break-all;
-    background:#0b1119;border:1px solid var(--line);border-radius:10px;padding:12px;margin:8px 0}
+    background:#0d1220;border:1px solid var(--line);border-radius:12px;padding:13px;margin:8px 0}
   .codebig{font-family:ui-monospace,monospace;font-size:34px;font-weight:800;letter-spacing:8px;
-    text-align:center;color:var(--acc);text-shadow:0 0 22px #1fe07a55;margin:4px 0 10px}
+    text-align:center;color:var(--acc);text-shadow:0 0 26px #34d39955;margin:4px 0 10px}
   .mini{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.6}
   .status{margin-top:22px;font-size:15px;color:var(--muted);min-height:22px;transition:color .2s;
     display:flex;align-items:center;gap:9px}
@@ -131,9 +138,9 @@
 
   /* overlay di collegamento / risveglio server */
   #boot{position:fixed;inset:0;z-index:40;display:none;flex-direction:column;align-items:center;
-    justify-content:center;gap:16px;background:#070a0ee6;backdrop-filter:blur(4px);text-align:center;padding:24px}
-  #boot .spin{width:52px;height:52px;border-radius:50%;border:3px solid #1fe07a22;
-    border-top-color:var(--acc);animation:spin .9s linear infinite}
+    justify-content:center;gap:16px;background:#0b0e16e8;backdrop-filter:blur(6px);text-align:center;padding:24px}
+  #boot .spin{width:52px;height:52px;border-radius:50%;border:3px solid #ffffff14;
+    border-top-color:var(--main);animation:spin .9s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   #boot .bt{font-size:16px;font-weight:600} #boot .bs{font-size:13px;color:var(--muted);max-width:340px}
 
@@ -143,7 +150,7 @@
   .toast{background:#131926ee;border:1px solid var(--line);backdrop-filter:var(--glass);
     color:var(--text);padding:11px 16px;border-radius:12px;font-size:14px;box-shadow:0 12px 30px #000a;
     animation:toastin .25s ease both;max-width:88vw}
-  .toast.ok{border-color:#1fe07a55} .toast.err{border-color:#ff6b6b55} .toast.warn{border-color:#ffbe4655}
+  .toast.ok{border-color:#34d39966} .toast.err{border-color:#f8717166} .toast.warn{border-color:#fbbf2466}
   @keyframes toastin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 
   @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -214,8 +221,8 @@
 
   <button class="btn bMain" onclick="startMain()">
     <span class="ico">🎮</span>
-    <span class="txt">SCHERMO PRINCIPALE (gioco)
-      <small>usa questo schermo, ricevi l'overlay e mostra la fusione</small></span>
+    <span class="txt">Schermo principale
+      <small>Usa questo schermo, ricevi l'overlay e vedi la fusione</small></span>
   </button>
   <div class="card" id="mainCard">
     <label>Incolla qui il link (o codice) dell'overlay, poi Collega</label>
@@ -229,9 +236,9 @@
   <div class="or">oppure</div>
 
   <button class="btn bOv" onclick="startOverlay()">
-    <span class="ico">🟢</span>
-    <span class="txt">CREA OVERLAY E INVIA IL LINK
-      <small>invia il tuo schermo (overlay su nero) a tutti</small></span>
+    <span class="ico">📡</span>
+    <span class="txt">Crea overlay e invia il link
+      <small>Invia il tuo schermo (overlay su nero) a tutti</small></span>
   </button>
   <div class="card" id="ovCard">
     <label>Codice stanza &mdash; oppure manda il link qui sotto</label>
@@ -792,7 +799,7 @@ function stopRain(){ if(rainTimer){ clearInterval(rainTimer); rainTimer=null; } 
 
 (function(){ const q=new URLSearchParams(location.search);
   if(q.get("view")) startPhone(q.get("view").toUpperCase());
-  else { startRain(); if(q.get("main")||q.get("room")){ setStatus('Premi "SCHERMO PRINCIPALE" per collegarti all\'overlay.'); toast('Link overlay rilevato — premi "Schermo principale"','ok'); } }
+  else { if(q.get("main")||q.get("room")){ setStatus('Premi "SCHERMO PRINCIPALE" per collegarti all\'overlay.'); toast('Link overlay rilevato — premi "Schermo principale"','ok'); } }
   // pre-carica gli ICE in background cosi' il primo click e' istantaneo
   loadIce();
 })();
