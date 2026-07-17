@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="it">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -161,10 +161,10 @@
 <canvas id="rain"></canvas>
 <div id="glow"></div>
 
-<button class="gear" id="gear" onclick="toggleSettings(event)" title="Qualita'">&#9881;</button>
+<button class="gear" id="gear" onclick="toggleSettings(event)" title="Quality">&#9881;</button>
 <div class="spanel" id="spanel">
-  <h3>Qualita'</h3>
-  <div class="srow"><span>Risoluzione</span>
+  <h3>Quality</h3>
+  <div class="srow"><span>Resolution</span>
     <select id="setRes">
       <option value="1920x1080">1080p</option>
       <option value="1600x900">900p</option>
@@ -177,38 +177,38 @@
       <option value="60" selected>60</option>
       <option value="30">30</option>
     </select></div>
-  <div class="srow"><span>Qualita' video</span>
+  <div class="srow"><span>Video quality</span>
     <select id="setQual">
-      <option value="auto" selected>Auto (consigliato)</option>
-      <option value="high">Alta (piu' banda)</option>
-      <option value="max">Massima (LAN/fibra)</option>
+      <option value="auto" selected>Auto (recommended)</option>
+      <option value="high">High (more bandwidth)</option>
+      <option value="max">Max (LAN/fiber)</option>
     </select></div>
-  <div class="srow"><span>Latenza (buffer)</span>
+  <div class="srow"><span>Latency (buffer)</span>
     <select id="setJit">
-      <option value="0">Minima (solo LAN)</option>
-      <option value="120" selected>Bilanciata</option>
-      <option value="300">Fluida (rete instabile)</option>
+      <option value="0">Minimum (LAN only)</option>
+      <option value="120" selected>Balanced</option>
+      <option value="300">Smooth (unstable network)</option>
     </select></div>
-  <div class="srow"><span>Se la banda cala</span>
+  <div class="srow"><span>If bandwidth drops</span>
     <select id="setPref">
-      <option value="maintain-framerate" selected>Tieni i 60 FPS</option>
-      <option value="maintain-resolution">Tieni la risoluzione</option>
+      <option value="maintain-framerate" selected>Keep 60 FPS</option>
+      <option value="maintain-resolution">Keep resolution</option>
     </select></div>
-  <div class="srow"><span>Fusione</span>
+  <div class="srow"><span>Blend</span>
     <select id="setBlend">
-      <option value="screen" selected>Schermo (neri via)</option>
-      <option value="lighten">Chiarisci</option>
-      <option value="lighter">Additivo</option>
-      <option value="multiply">Moltiplica (bianchi via)</option>
-      <option value="overlay">Sovrapposizione</option>
-      <option value="difference">Differenza</option>
+      <option value="screen" selected>Screen (drop blacks)</option>
+      <option value="lighten">Lighten</option>
+      <option value="lighter">Additive</option>
+      <option value="multiply">Multiply (drop whites)</option>
+      <option value="overlay">Overlay</option>
+      <option value="difference">Difference</option>
     </select></div>
   <div class="srow"><span>Clip (replay)</span>
     <select id="setClip">
       <option value="0">Off</option>
-      <option value="1" selected>Ultimo 1 min</option>
-      <option value="2">Ultimi 2 min</option>
-      <option value="3">Ultimi 3 min</option>
+      <option value="1" selected>Last 1 min</option>
+      <option value="2">Last 2 min</option>
+      <option value="3">Last 3 min</option>
     </select></div>
 </div>
 
@@ -217,66 +217,66 @@
     <img class="logo" src="logo.png" alt="Matrix">
     <div class="brand">Matrix <span>Screen&nbsp;Sharing</span></div>
   </header>
-  <div class="tag">Sovrapponi due schermi in blend &ldquo;Schermo&rdquo; &mdash; peer-to-peer, senza installare nulla. Guarda la fusione anche dal telefono.</div>
+  <div class="tag">Overlay two screens in &ldquo;Screen&rdquo; blend &mdash; peer-to-peer, nothing to install. Watch the fusion from your phone too.</div>
 
   <button class="btn bMain" onclick="startMain()">
     <span class="ico">🎮</span>
-    <span class="txt">Schermo principale
-      <small>Usa questo schermo, ricevi l'overlay e vedi la fusione</small></span>
+    <span class="txt">Main screen
+      <small>Use this screen, receive the overlay and see the fusion</small></span>
   </button>
   <div class="card" id="mainCard">
-    <label>Incolla qui il link (o codice) dell'overlay, poi Collega</label>
+    <label>Paste the overlay link (or code) here, then Connect</label>
     <div class="rowf">
-      <input id="ovLink" placeholder="link o codice dell'overlay..." autocomplete="off">
-      <button class="ghost" onclick="mainConnect()">Collega</button>
+      <input id="ovLink" placeholder="overlay link or code..." autocomplete="off">
+      <button class="ghost" onclick="mainConnect()">Connect</button>
     </div>
-    <div class="mini">Piu' persone possono usare lo stesso link: ognuno avra' la SUA fusione.</div>
+    <div class="mini">Multiple people can use the same link: everyone gets THEIR own fusion.</div>
   </div>
 
-  <div class="or">oppure</div>
+  <div class="or">or</div>
 
   <button class="btn bOv" onclick="startOverlay()">
     <span class="ico">📡</span>
-    <span class="txt">Crea overlay e invia il link
-      <small>Invia il tuo schermo (overlay su nero) a tutti</small></span>
+    <span class="txt">Create overlay and send the link
+      <small>Send your screen (overlay on black) to everyone</small></span>
   </button>
   <div class="card" id="ovCard">
-    <label>Codice stanza &mdash; oppure manda il link qui sotto</label>
+    <label>Room code &mdash; or share the link below</label>
     <div class="codebig" id="ovCode">····</div>
     <div class="linkbox" id="ovShare">...</div>
     <div class="rowf">
-      <button class="ghost" style="flex:1" onclick="copy('ovShare')">📋 Copia link</button>
-      <button class="ghost" style="flex:1" onclick="shareLink()">↗ Condividi</button>
+      <button class="ghost" style="flex:1" onclick="copy('ovShare')">📋 Copy link</button>
+      <button class="ghost" style="flex:1" onclick="shareLink()">↗ Share</button>
     </div>
-    <div class="mini" id="ovStatus2">Chiunque apra questo link avra' il tuo overlay sul suo schermo.</div>
+    <div class="mini" id="ovStatus2">Anyone who opens this link will get your overlay on their screen.</div>
   </div>
 
-  <div class="status" id="status"><span class="dot"></span><span id="statusT">Pronto.</span></div>
+  <div class="status" id="status"><span class="dot"></span><span id="statusT">Ready.</span></div>
 </div>
 
 <div id="stage">
   <canvas id="cv" width="1920" height="1080"></canvas>
   <video id="fus" muted playsinline></video>
 </div>
-<div id="connpill"><span class="dot"></span><span id="connT">Collegamento…</span></div>
+<div id="connpill"><span class="dot"></span><span id="connT">Connecting…</span></div>
 <div id="hud"></div>
 <div id="badge"></div>
 <div id="bar">
-  <button id="blendBtn" onclick="cycleBlend()" style="display:none">🎨 Fusione: Schermo</button>
-  <button id="phoneBtn" onclick="copyPhone()" style="display:none">📱 Link telefono</button>
+  <button id="blendBtn" onclick="cycleBlend()" style="display:none">🎨 Blend: Screen</button>
+  <button id="phoneBtn" onclick="copyPhone()" style="display:none">📱 Phone link</button>
   <span id="recDot" style="display:none;align-items:center;gap:6px;color:#ff6b6b;font-size:13px;padding:10px">
     <span style="width:9px;height:9px;border-radius:50%;background:#ff6b6b;box-shadow:0 0 10px #ff6b6b;animation:pulse 1.2s ease-in-out infinite"></span>REC</span>
-  <button id="clipBtn" onclick="saveClip()" style="display:none">💾 Salva clip</button>
+  <button id="clipBtn" onclick="saveClip()" style="display:none">💾 Save clip</button>
   <button id="hudBtn" onclick="toggleHud()">📊 Stats</button>
-  <button id="setBtn" onclick="toggleSettings(event)">⚙ Qualità</button>
-  <button onclick="toggleFs()">⛶ Schermo intero</button>
-  <button onclick="location.href=location.origin+location.pathname">✕ Esci</button>
+  <button id="setBtn" onclick="toggleSettings(event)">⚙ Quality</button>
+  <button onclick="toggleFs()">⛶ Fullscreen</button>
+  <button onclick="location.href=location.origin+location.pathname">✕ Exit</button>
 </div>
 
 <div id="boot">
   <div class="spin"></div>
-  <div class="bt" id="bootT">Collegamento al server…</div>
-  <div class="bs" id="bootS">Un attimo.</div>
+  <div class="bt" id="bootT">Connecting to the server…</div>
+  <div class="bs" id="bootS">One moment.</div>
 </div>
 
 <div id="toasts"></div>
@@ -284,7 +284,7 @@
 <script>
 const $ = id => document.getElementById(id);
 function setStatus(t,c){ $('statusT').textContent=t; $('status').className='status'+(c?' '+c:''); }
-function copy(id){ const el=$(id); navigator.clipboard.writeText(el.textContent||el.value).then(()=>toast('Copiato!','ok')); }
+function copy(id){ const el=$(id); navigator.clipboard.writeText(el.textContent||el.value).then(()=>toast('Copied!','ok')); }
 
 /* ---- toast ---- */
 function toast(msg,kind){
@@ -294,7 +294,7 @@ function toast(msg,kind){
 }
 async function shareLink(){
   const link=$('ovShare').textContent;
-  if(navigator.share){ try{ await navigator.share({title:'Matrix Screen Sharing', text:'Apri il mio overlay:', url:link}); return; }catch(e){} }
+  if(navigator.share){ try{ await navigator.share({title:'Matrix Screen Sharing', text:'Open my overlay:', url:link}); return; }catch(e){} }
   copy('ovShare');
 }
 
@@ -328,8 +328,8 @@ const SET={ w:1920, h:1080, fps:60, pref:"maintain-framerate", blend:"screen", q
 // hint di contenuto: "motion" = bassa latenza + priorita' ai 60fps (default);
 // "detail" solo in qualita' Massima, dove si preferisce la nitidezza del testo.
 function contentHint(){ return SET.qual==="max" ? "detail" : "motion"; }
-const BLENDS=[["screen","Schermo"],["lighten","Chiarisci"],["lighter","Additivo"],
-  ["multiply","Moltiplica"],["overlay","Sovrapposizione"],["difference","Differenza"]];
+const BLENDS=[["screen","Screen"],["lighten","Lighten"],["lighter","Additive"],
+  ["multiply","Multiply"],["overlay","Overlay"],["difference","Difference"]];
 function readSettings(){
   const r=($('setRes')||{}).value; if(r){ const [w,h]=r.split("x").map(Number); SET.w=w; SET.h=h; }
   const f=($('setFps')||{}).value; if(f) SET.fps=Number(f);
@@ -518,7 +518,7 @@ function retuneAll(){
 let liveT=null;
 async function applyLive(){
   readSettings();
-  if($('blendBtn')&&$('blendBtn').style.display!=='none') $('blendBtn').textContent="🎨 Fusione: "+blendLabel(SET.blend);
+  if($('blendBtn')&&$('blendBtn').style.display!=='none') $('blendBtn').textContent="🎨 Blend: "+blendLabel(SET.blend);
   // la fusione e' grande quanto il canvas: ridimensionarlo cambia la risoluzione
   // inviata ai telefoni senza ricollegare (il loop di disegno segue le nuove misure)
   if(fusionStream){ const cv=$('cv'); if(cv.width!==SET.w||cv.height!==SET.h){ cv.width=SET.w; cv.height=SET.h; } }
@@ -527,66 +527,66 @@ async function applyLive(){
   // clip: accendi/spegni il buffer secondo la scelta
   if(SET.clipMin>0){ if(!recorder && recStream()) startBuffer(); }
   else stopBuffer();
-  if($('stage').style.display==='block'){ clearTimeout(liveT); liveT=setTimeout(()=>toast('Impostazioni applicate ✓','ok'),120); }
+  if($('stage').style.display==='block'){ clearTimeout(liveT); liveT=setTimeout(()=>toast('Settings applied ✓','ok'),120); }
 }
 
 async function startOverlay(){
   readSettings();
-  showBoot("Preparo il collegamento…","Cerco il percorso migliore (STUN/TURN).");
+  showBoot("Preparing the connection…","Finding the best path (STUN/TURN).");
   await loadIce();
-  let s; try{ hideBoot(); setStatus('Seleziona lo schermo da inviare (overlay su nero)…','warn'); s=await grab(); }
-  catch(e){ hideBoot(); setStatus('Cattura annullata.','warn'); return; }
+  let s; try{ hideBoot(); setStatus('Select the screen to send (overlay on black)…','warn'); s=await grab(); }
+  catch(e){ hideBoot(); setStatus('Capture cancelled.','warn'); return; }
   localCap=s;
-  s.getVideoTracks()[0].addEventListener('ended',()=>{ setStatus('Cattura interrotta.','warn'); toast('Condivisione schermo interrotta','warn'); });
+  s.getVideoTracks()[0].addEventListener('ended',()=>{ setStatus('Capture stopped.','warn'); toast('Screen sharing stopped','warn'); });
   ovConn=RoomConn({ role:"overlay", create:true, getTracks:()=>s,
     onReady:c=>{ const link=location.origin+location.pathname+"?main="+c.code;
       $('ovCode').textContent=c.code;
       $('ovShare').textContent=link; $('ovCard').classList.add('on'); $('mainCard').classList.remove('on');
-      setStatus('Overlay attivo. Manda il link (o il codice) a chi vuole l\'overlay.','ok'); toast('Overlay pronto ✓','ok'); },
-    onPeer:r=>{ if(r==="sub"){ $('ovStatus2').textContent="Uno schermo si e' collegato ✓ (puoi averne piu' d'uno)"; toast('Uno schermo si è collegato','ok'); } },
-    onNet:s=>{ if(s==='reconnecting') toast('Riconnessione al server…','warn'); if(s==='ok') toast('Server riconnesso ✓ — il link è di nuovo valido','ok'); },
+      setStatus('Overlay active. Send the link (or code) to whoever wants the overlay.','ok'); toast('Overlay ready ✓','ok'); },
+    onPeer:r=>{ if(r==="sub"){ $('ovStatus2').textContent="A screen connected ✓ (you can have more than one)"; toast('A screen connected','ok'); } },
+    onNet:s=>{ if(s==='reconnecting') toast('Reconnecting to the server…','warn'); if(s==='ok') toast('Server reconnected ✓ — the link is valid again','ok'); },
     onError:m=>{ setStatus(m,'err'); toast(m,'err'); } });
 }
 
 async function startMain(){
   readSettings();
-  showBoot("Preparo il collegamento…","Cerco il percorso migliore (STUN/TURN).");
+  showBoot("Preparing the connection…","Finding the best path (STUN/TURN).");
   await loadIce();
-  try{ hideBoot(); setStatus('Seleziona lo schermo di gioco…','warn'); gameStream=await grab(); }
-  catch(e){ hideBoot(); setStatus('Cattura annullata.','warn'); return; }
+  try{ hideBoot(); setStatus('Select the game screen…','warn'); gameStream=await grab(); }
+  catch(e){ hideBoot(); setStatus('Capture cancelled.','warn'); return; }
   localCap=gameStream;
-  gameStream.getVideoTracks()[0].addEventListener('ended',()=>{ toast('Cattura schermo di gioco interrotta','warn'); });
+  gameStream.getVideoTracks()[0].addEventListener('ended',()=>{ toast('Game screen capture stopped','warn'); });
   $('mainCard').classList.add('on'); $('ovCard').classList.remove('on');
   const pre=new URLSearchParams(location.search).get("main")||new URLSearchParams(location.search).get("room");
   if(pre) $('ovLink').value=pre;
-  setStatus('Schermo pronto. Incolla il link dell\'overlay e premi Collega.');
+  setStatus('Screen ready. Paste the overlay link and press Connect.');
 }
 
 function mainConnect(){
   const code=parseCode($('ovLink').value);
-  if(!code){ setStatus('Link/codice non valido.','warn'); toast('Link/codice non valido','warn'); return; }
+  if(!code){ setStatus('Invalid link/code.','warn'); toast('Invalid link/code','warn'); return; }
   $('cv').width=SET.w; $('cv').height=SET.h;
   showStage('cv'); startDrawMain();
-  setConn('connecting','In collegamento all\'overlay…');
+  setConn('connecting','Connecting to the overlay…');
   fusionStream=$('cv').captureStream(SET.fps);
   const ft=fusionStream.getVideoTracks()[0]; if(ft) ft.contentHint=contentHint();
   // sorgente della fusione per i telefoni/altri schermi
   mainSrc=RoomConn({ role:"fusionsrc", create:true, getTracks:()=>fusionStream,
     onReady:c=>{ viewerCode=c.code; $('phoneBtn').style.display="inline-block"; },
-    onNet:s=>{ if(s==='reconnecting') toast('Riconnessione al server…','warn'); if(s==='ok') toast('Server riconnesso ✓','ok'); },
+    onNet:s=>{ if(s==='reconnecting') toast('Reconnecting to the server…','warn'); if(s==='ok') toast('Server reconnected ✓','ok'); },
     onError:m=>toast(m,'err') });
   // ricezione dell'overlay
   mainSub=RoomConn({ role:"sub", code,
-    onStream:(r,s)=>{ if(r==="overlay"){ overlayStream=s; setStatus('Fusione attiva','ok'); } },
+    onStream:(r,s)=>{ if(r==="overlay"){ overlayStream=s; setStatus('Fusion active','ok'); } },
     onIce:(r,st,pc)=>{ if(r!=="overlay")return;
-      if(st==="connected"||st==="completed"){ setConn('ok','Overlay collegato'); }
-      else if(st==="checking"){ setConn('connecting','Handshake in corso…'); }
-      else if(st==="failed"){ setConn('err','Connessione fallita — riprovo…'); }
-      else if(st==="disconnected"){ setConn('warn','Connessione instabile…'); } },
+      if(st==="connected"||st==="completed"){ setConn('ok','Overlay connected'); }
+      else if(st==="checking"){ setConn('connecting','Handshaking…'); }
+      else if(st==="failed"){ setConn('err','Connection failed — retrying…'); }
+      else if(st==="disconnected"){ setConn('warn','Unstable connection…'); } },
     onError:m=>{ setConn('err',m); toast(m,'err'); } });
   startStats(mainSub,'overlay');
   startBuffer();
-  badge('La tua fusione — stanza '+code);
+  badge('Your fusion — room '+code);
 }
 
 function startDrawMain(){
@@ -604,17 +604,17 @@ function startDrawMain(){
 
 async function startPhone(code){
   readSettings();
-  showStage('fus'); setConn('connecting','Collegamento…'); badge('Vista — stanza '+code);
-  showBoot("Collegamento alla fusione…","Se il server dormiva, il piano gratuito può metterci ~30s.");
-  bootTimer=setTimeout(()=>$('bootS').textContent="Il server si sta svegliando (piano gratuito), ancora un attimo…",4000);
+  showStage('fus'); setConn('connecting','Connecting…'); badge('View — room '+code);
+  showBoot("Connecting to the fusion…","If the server was asleep, the free plan may take ~30s.");
+  bootTimer=setTimeout(()=>$('bootS').textContent="The server is waking up (free plan), one more moment…",4000);
   await loadIce();
   phoneConn=RoomConn({ role:"phoneview", code,
-    onSocket:up=>{ if(up) $('bootT').textContent="Server connesso, aspetto il video…"; },
+    onSocket:up=>{ if(up) $('bootT').textContent="Server connected, waiting for video…"; },
     onStream:(r,s)=>{ if(r==="fusionsrc"){ hideBoot(); const f=$('fus'); f.srcObject=s; f.play().catch(()=>{}); startBuffer(); } },
     onIce:(r,st)=>{ if(r!=="fusionsrc")return;
-      if(st==="connected"||st==="completed"){ hideBoot(); setConn('ok','Collegato'); }
-      else if(st==="failed"){ setConn('err','Connessione fallita — riprovo…'); }
-      else if(st==="disconnected"){ setConn('warn','Instabile…'); } },
+      if(st==="connected"||st==="completed"){ hideBoot(); setConn('ok','Connected'); }
+      else if(st==="failed"){ setConn('err','Connection failed — retrying…'); }
+      else if(st==="disconnected"){ setConn('warn','Unstable…'); } },
     onError:m=>{ hideBoot(); setConn('err',m); badge(m); toast(m,'err'); } });
   // Se dopo 14s non c'è ancora video né connessione P2P, quasi sempre è la rete
   // che blocca il collegamento diretto e manca un TURN: dillo invece di restare neri.
@@ -622,8 +622,8 @@ async function startPhone(code){
     const f=$('fus');
     if(phoneConn && !phoneConn.closed && !phoneConn.hasLive() && !(f && f.srcObject)){
       hideBoot();
-      setConn('err','Video non collegato: la rete blocca il P2P (serve un TURN).');
-      badge('Non riesco a passare il video su questa rete — serve un relay TURN. Vedi le impostazioni TURN del server.');
+      setConn('err','Video not connected: the network is blocking P2P (a TURN is needed).');
+      badge('Can\'t get the video through on this network — a TURN relay is needed. See the server TURN settings.');
     }
   }, 14000);
   startStats(phoneConn,'fusionsrc');
@@ -706,7 +706,7 @@ function startBuffer(){
   try{ r.start(1000); }catch(e){ recorder=null; return; }
   $('recDot').style.display='inline-flex';
   $('clipBtn').style.display='inline-block';
-  $('clipBtn').textContent='💾 Salva clip';
+  $('clipBtn').textContent='💾 Save clip';
 }
 function rotate(){
   const old=recorder, oldArr=recChunks;
@@ -725,20 +725,20 @@ function stopBuffer(){
   $('recDot').style.display='none'; $('clipBtn').style.display='none';
 }
 function saveClip(){
-  if(!recorder){ toast('Registrazione non attiva','warn'); return; }
+  if(!recorder){ toast('Recording not active','warn'); return; }
   // esporta un segmento continuo intero (mai frammenti tagliati)
   const curLen=performance.now()-recStart;
   let blob=null;
   if(recChunks.length && (curLen>=winMs()*0.5 || !prevBlob)) blob=new Blob(recChunks,{type:'video/webm'});
   else if(prevBlob) blob=prevBlob;
-  if(!blob||!blob.size){ toast('Ancora niente da salvare','warn'); return; }
+  if(!blob||!blob.size){ toast('Nothing to save yet','warn'); return; }
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   const ts=new Date().toISOString().replace(/[:T]/g,'-').replace(/\..+/,'');
   a.href=url; a.download='clip-'+ts+'.webm';
   document.body.appendChild(a); a.click();
   setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 5000);
-  toast('Clip salvata ✓','ok');
+  toast('Clip saved ✓','ok');
 }
 
 function showStage(which){
@@ -747,18 +747,18 @@ function showStage(which){
   $('cv').style.display = which==='cv'?'block':'none';
   $('fus').style.display= which==='fus'?'block':'none';
   if(which==='cv'){ $('blendBtn').style.display="inline-block";
-    $('blendBtn').textContent="🎨 Fusione: "+blendLabel(SET.blend); }
+    $('blendBtn').textContent="🎨 Blend: "+blendLabel(SET.blend); }
   stopRain();
 }
 function badge(t){ const b=$('badge'); b.style.display='block'; b.textContent=t; clearTimeout(badge._t); badge._t=setTimeout(()=>{ b.style.display='none'; }, 5000); }
 function copyPhone(){ const link=location.origin+location.pathname+"?view="+viewerCode;
-  navigator.clipboard.writeText(link).then(()=>{ toast('📱 Link telefono copiato!','ok'); }); }
+  navigator.clipboard.writeText(link).then(()=>{ toast('📱 Phone link copied!','ok'); }); }
 function blendLabel(v){ const b=BLENDS.find(x=>x[0]===v); return b?b[1]:v; }
 function cycleBlend(){
   const i=BLENDS.findIndex(x=>x[0]===SET.blend);
   SET.blend=BLENDS[(i+1)%BLENDS.length][0];
   const sel=$('setBlend'); if(sel) sel.value=SET.blend;
-  $('blendBtn').textContent="🎨 Fusione: "+blendLabel(SET.blend);
+  $('blendBtn').textContent="🎨 Blend: "+blendLabel(SET.blend);
 }
 function toggleFs(){ if(!document.fullscreenElement) $('stage').requestFullscreen&&$('stage').requestFullscreen(); else document.exitFullscreen(); }
 document.addEventListener('keydown', e=>{ if($('stage').style.display!=='block') return;
@@ -799,7 +799,7 @@ function stopRain(){ if(rainTimer){ clearInterval(rainTimer); rainTimer=null; } 
 
 (function(){ const q=new URLSearchParams(location.search);
   if(q.get("view")) startPhone(q.get("view").toUpperCase());
-  else { if(q.get("main")||q.get("room")){ setStatus('Premi "SCHERMO PRINCIPALE" per collegarti all\'overlay.'); toast('Link overlay rilevato — premi "Schermo principale"','ok'); } }
+  else { if(q.get("main")||q.get("room")){ setStatus('Press "MAIN SCREEN" to connect to the overlay.'); toast('Overlay link detected — press "Main screen"','ok'); } }
   // pre-carica gli ICE in background cosi' il primo click e' istantaneo
   loadIce();
 })();

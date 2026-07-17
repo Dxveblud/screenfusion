@@ -156,7 +156,7 @@ wss.on("connection", (ws) => {
     } else if (m.t === "join") {
       const code = (m.code || "").toUpperCase();
       const room = rooms.get(code);
-      if (!room) { send(ws, { t: "error", msg: "Stanza inesistente o overlay non attivo" }); return; }
+      if (!room) { send(ws, { t: "error", msg: "Room does not exist or overlay not active" }); return; }
       room.set(ws.id, { ws, role: m.role });
       ws.room = code; ws.role = m.role;
       send(ws, { t: "joined", code, id: ws.id, peers: peerList(room, ws.id) });
