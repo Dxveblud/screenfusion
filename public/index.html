@@ -155,6 +155,19 @@
 
   @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
   @keyframes drop{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}
+
+  /* QR modal */
+  #qrmodal{position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;
+    background:#070a12cc;backdrop-filter:blur(6px);padding:22px}
+  .qrcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:22px;max-width:360px;width:100%;text-align:center;box-shadow:0 24px 60px #000a;
+    backdrop-filter:var(--glass);animation:fade .25s both}
+  .qrhead{font-size:16px;font-weight:650;margin-bottom:16px}
+  #qrimg{background:#fff;border-radius:14px;padding:14px;display:inline-block;line-height:0}
+  #qrimg img{display:block;width:210px;height:210px;image-rendering:pixelated}
+  .qrlink{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;word-break:break-all;
+    color:var(--muted);background:#0d1220;border:1px solid var(--line);border-radius:10px;
+    padding:10px;margin:14px 0}
 </style>
 </head>
 <body>
@@ -263,7 +276,7 @@
 <div id="badge"></div>
 <div id="bar">
   <button id="blendBtn" onclick="cycleBlend()" style="display:none">🎨 Blend: Screen</button>
-  <button id="phoneBtn" onclick="copyPhone()" style="display:none">📱 Phone link</button>
+  <button id="phoneBtn" onclick="showPhoneQR()" style="display:none">📱 Phone QR</button>
   <span id="recDot" style="display:none;align-items:center;gap:6px;color:#ff6b6b;font-size:13px;padding:10px">
     <span style="width:9px;height:9px;border-radius:50%;background:#ff6b6b;box-shadow:0 0 10px #ff6b6b;animation:pulse 1.2s ease-in-out infinite"></span>REC</span>
   <button id="clipBtn" onclick="saveClip()" style="display:none">💾 Save clip</button>
@@ -281,6 +294,20 @@
 
 <div id="toasts"></div>
 
+<!-- QR modal: scan to open the phone view -->
+<div id="qrmodal" onclick="if(event.target===this)closeQR()">
+  <div class="qrcard">
+    <div class="qrhead">📱 Scan to watch on your phone</div>
+    <div id="qrimg"></div>
+    <div class="qrlink" id="qrlink"></div>
+    <div class="rowf">
+      <button class="ghost" style="flex:1" onclick="copyPhone()">📋 Copy link</button>
+      <button class="ghost" style="flex:1" onclick="closeQR()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="qrcode.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 function setStatus(t,c){ $('statusT').textContent=t; $('status').className='status'+(c?' '+c:''); }
@@ -751,8 +778,17 @@ function showStage(which){
   stopRain();
 }
 function badge(t){ const b=$('badge'); b.style.display='block'; b.textContent=t; clearTimeout(badge._t); badge._t=setTimeout(()=>{ b.style.display='none'; }, 5000); }
-function copyPhone(){ const link=location.origin+location.pathname+"?view="+viewerCode;
-  navigator.clipboard.writeText(link).then(()=>{ toast('📱 Phone link copied!','ok'); }); }
+function phoneLink(){ return location.origin+location.pathname+"?view="+viewerCode; }
+function copyPhone(){ navigator.clipboard.writeText(phoneLink()).then(()=>{ toast('📱 Phone link copied!','ok'); }); }
+function showPhoneQR(){
+  if(!viewerCode){ toast('Start the main screen first','warn'); return; }
+  const link=phoneLink();
+  $('qrlink').textContent=link;
+  try{ const qr=qrcode(0,'M'); qr.addData(link); qr.make(); $('qrimg').innerHTML=qr.createImgTag(6,0); }
+  catch(e){ $('qrimg').textContent='QR error'; }
+  $('qrmodal').style.display='flex';
+}
+function closeQR(){ $('qrmodal').style.display='none'; }
 function blendLabel(v){ const b=BLENDS.find(x=>x[0]===v); return b?b[1]:v; }
 function cycleBlend(){
   const i=BLENDS.findIndex(x=>x[0]===SET.blend);
