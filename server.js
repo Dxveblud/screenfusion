@@ -91,10 +91,61 @@ async function getIceServers() {
   return [...STUN, ...(await turnServers())];
 }
 
+// ---- Accesso a token: chi CONDIVIDE deve avere un token 'screenfusion' valido -----
+// I token stanno sul Worker licenze esistente ({ nome: {product,hwid,expires} }).
+// La validazione la fa il SERVER (non il browser), cosi' i token non sono mai esposti.
+const LICENSE_WORKER_URL = (process.env.LICENSE_WORKER_URL || "https://tiny-waterfall-cedd.dxve97.workers.dev").replace(/\/+$/, "");
+const REQUIRE_TOKEN = (process.env.REQUIRE_TOKEN || "1") !== "0";
+const REQUIRED_PRODUCT = (process.env.REQUIRED_PRODUCT || "screenfusion").toLowerCase();
+let _licCache = { data: null, ts: 0 };
+
+async function fetchLicenses() {
+  if (_licCache.data && Date.now() - _licCache.ts < 60000) return _licCache.data;
+  const j = await fetchJson(LICENSE_WORKER_URL);
+  _licCache = { data: (j && typeof j === "object") ? j : {}, ts: Date.now() };
+  return _licCache.data;
+}
+function licenseActive(lic) {
+  if (!lic || String(lic.product || "").toLowerCase() !== REQUIRED_PRODUCT) return false;
+  const exp = String(lic.expires || "").trim().toLowerCase();
+  if (!exp || exp === "lifetime" || exp === "sempre" || exp === "infinito") return true;
+  const m = exp.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return true;
+  return new Date(+m[3], +m[2] - 1, +m[1], 23, 59, 59).getTime() >= Date.now();
+}
+async function validateToken(token) {
+  if (!REQUIRE_TOKEN) return { ok: true };
+  token = String(token || "").trim();
+  if (!token) return { ok: false, reason: "missing" };
+  try {
+    const lic = (await fetchLicenses())[token];
+    if (!lic) return { ok: false, reason: "notfound" };
+    if (!licenseActive(lic)) return { ok: false, reason: "expired", expires: lic.expires };
+    return { ok: true, expires: lic.expires };
+  } catch (e) { return { ok: false, reason: "error" }; }
+}
+
 const server = http.createServer(async (req, res) => {
   let url = decodeURIComponent(req.url.split("?")[0]);
 
   if (url === "/healthz") { res.writeHead(200, { "Content-Type": "text/plain" }); res.end("ok"); return; }
+  if (url === "/auth" && req.method === "POST") {
+    let body = "";
+    req.on("data", c => { body += c; if (body.length > 4000) req.destroy(); });
+    req.on("end", async () => {
+      let token = "";
+      try { token = JSON.parse(body || "{}").token || ""; } catch {}
+      const r = await validateToken(token);
+      res.writeHead(200, { "Content-Type": MIME[".json"], "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*" });
+      res.end(JSON.stringify(r));
+    });
+    return;
+  }
+  if (url === "/config") {   // il client chiede se serve il token
+    res.writeHead(200, { "Content-Type": MIME[".json"], "Cache-Control": "no-store" });
+    res.end(JSON.stringify({ requireToken: REQUIRE_TOKEN }));
+    return;
+  }
   if (url === "/ice") {
     const iceServers = await getIceServers();
     res.writeHead(200, { "Content-Type": MIME[".json"], "Cache-Control": "no-store" });
@@ -138,12 +189,19 @@ wss.on("connection", (ws) => {
   ws.id = nextId++; ws.room = null; ws.role = null; ws.isAlive = true;
   ws.on("pong", () => { ws.isAlive = true; });
 
-  ws.on("message", (raw) => {
+  ws.on("message", async (raw) => {
     let m; try { m = JSON.parse(raw); } catch { return; }
 
     if (m.t === "ping") { send(ws, { t: "pong" }); return; }
 
     if (m.t === "create") {
+      // chi CONDIVIDE (crea una stanza) deve avere un token screenfusion valido
+      const auth = await validateToken(m.token);
+      if (!auth.ok) {
+        send(ws, { t: "error", auth: auth.reason,
+          msg: auth.reason === "expired" ? "Your subscription has expired." : "Invalid or missing access token." });
+        return;
+      }
       // se il client chiede un codice (riconnessione dell'host dopo un riavvio)
       // e quel codice e' libero, glielo ridiamo: il link condiviso resta valido.
       let code = (m.code || "").toUpperCase();
